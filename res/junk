@@ -1,0 +1,676 @@
+makeindex:    2    -0.000605
+makeindex:    3    -0.000659
+makeindex:    4    -0.000907
+makeindex:    4     0.000760
+makeindex:    5     0.003539
+makeindex:    5     0.004275
+makeindex:    6    -0.001144
+makeindex:    7    -0.003472
+makeindex:    7     0.000000
+makeindex:    8     0.000000
+makeindex:    9     0.000000
+makeindex:    9     0.000000
+makeindex:   10     0.000000
+makeindex:   10     0.000000
+makeindex:   11     0.000000
+makeindex:   11     0.000000
+makeindex:   12     0.000000
+makeindex:   12     0.000000
+makeindex:   13     0.000000
+makeindex:   13     0.000000
+makeindex:   14     0.000000
+makeindex:   14     0.000000
+makeindex:   22
+getjac: (0, 0) = 32.760272
+32.760272
+getjac: (0, 1) = getsysinfo: find nbr 2 - 3 -5.162375
+-5.162375
+getjac: (0, 2) = getsysinfo: find nbr 2 - 4 -5.591295
+-5.591295
+getjac: (0, 3) = getsysinfo: find nbr 2 - 4 -1.279626
+-1.279626
+getjac: (0, 4) = getsysinfo: find nbr 2 - 5 -5.644206
+-5.644206
+getjac: (0, 5) = getsysinfo: find nbr 2 - 5 -1.442352
+-1.442352
+getjac: (0, 6) = 0.000000
+getjac: (0, 7) = 0.000000
+getjac: (0, 8) = 0.000000
+getjac: (0, 9) = 0.000000
+getjac: (0, 10) = 0.000000
+getjac: (0, 11) = 0.000000
+getjac: (0, 12) = 0.000000
+getjac: (0, 13) = 0.000000
+getjac: (0, 14) = 0.000000
+getjac: (0, 15) = 0.000000
+getjac: (0, 16) = 0.000000
+getjac: (0, 17) = 0.000000
+getjac: (0, 18) = 0.000000
+getjac: (0, 19) = 0.000000
+getjac: (0, 20) = 0.000000
+getjac: (0, 21) = 0.000000
+getjac: (1, 0) = getsysinfo: find nbr 3 - 2 -4.839698
+-4.839698
+getjac: (1, 1) = 9.966701
+9.966701
+getjac: (1, 2) = getsysinfo: find nbr 3 - 4 -5.127003
+-5.127003
+getjac: (1, 3) = getsysinfo: find nbr 3 - 4 -2.259715
+-2.259715
+getjac: (1, 4) = 0.000000
+getjac: (1, 5) = 0.000000
+getjac: (1, 6) = 0.000000
+getjac: (1, 7) = 0.000000
+getjac: (1, 8) = 0.000000
+getjac: (1, 9) = 0.000000
+getjac: (1, 10) = 0.000000
+getjac: (1, 11) = 0.000000
+getjac: (1, 12) = 0.000000
+getjac: (1, 13) = 0.000000
+getjac: (1, 14) = 0.000000
+getjac: (1, 15) = 0.000000
+getjac: (1, 16) = 0.000000
+getjac: (1, 17) = 0.000000
+getjac: (1, 18) = 0.000000
+getjac: (1, 19) = 0.000000
+getjac: (1, 20) = 0.000000
+getjac: (1, 21) = 0.000000
+getjac: (2, 0) = getsysinfo: find nbr 4 - 2 -5.256494
+-5.256494
+getjac: (2, 1) = getsysinfo: find nbr 4 - 3 -5.297473
+-5.297473
+getjac: (2, 2) = 39.704389
+39.704389
+getjac: (2, 3) = 10.417078
+10.417078
+getjac: (2, 4) = getsysinfo: find nbr 4 - 5 -22.227780
+-22.227780
+getjac: (2, 5) = getsysinfo: find nbr 4 - 5 -7.714447
+-7.714447
+getjac: (2, 6) = 0.000000
+getjac: (2, 7) = getsysinfo: find nbr 4 - 7 5.053944
+5.053944
+getjac: (2, 8) = getsysinfo: find nbr 4 - 7 -0.268404
+-0.268404
+getjac: (2, 9) = 0.000000
+getjac: (2, 10) = getsysinfo: find nbr 4 - 9 1.868698
+1.868698
+getjac: (2, 11) = getsysinfo: find nbr 4 - 9 -0.150680
+-0.150680
+getjac: (2, 12) = 0.000000
+getjac: (2, 13) = 0.000000
+getjac: (2, 14) = 0.000000
+getjac: (2, 15) = 0.000000
+getjac: (2, 16) = 0.000000
+getjac: (2, 17) = 0.000000
+getjac: (2, 18) = 0.000000
+getjac: (2, 19) = 0.000000
+getjac: (2, 20) = 0.000000
+getjac: (2, 21) = 0.000000
+getjac: (3, 0) = getsysinfo: find nbr 4 - 2 2.295493
+2.295493
+getjac: (3, 1) = getsysinfo: find nbr 4 - 3 1.824622
+1.824622
+getjac: (3, 2) = -11.415479
+-11.415479
+getjac: (3, 3) = 39.214980
+39.214980
+getjac: (3, 4) = getsysinfo: find nbr 4 - 5 7.714447
+7.714447
+getjac: (3, 5) = getsysinfo: find nbr 4 - 5 -22.227780
+-22.227780
+getjac: (3, 6) = 0.000000
+getjac: (3, 7) = getsysinfo: find nbr 4 - 7 0.268404
+0.268404
+getjac: (3, 8) = getsysinfo: find nbr 4 - 7 5.053944
+5.053944
+getjac: (3, 9) = 0.000000
+getjac: (3, 10) = getsysinfo: find nbr 4 - 9 0.150680
+0.150680
+getjac: (3, 11) = getsysinfo: find nbr 4 - 9 1.868698
+1.868698
+getjac: (3, 12) = 0.000000
+getjac: (3, 13) = 0.000000
+getjac: (3, 14) = 0.000000
+getjac: (3, 15) = 0.000000
+getjac: (3, 16) = 0.000000
+getjac: (3, 17) = 0.000000
+getjac: (3, 18) = 0.000000
+getjac: (3, 19) = 0.000000
+getjac: (3, 20) = 0.000000
+getjac: (3, 21) = 0.000000
+getjac: (4, 0) = getsysinfo: find nbr 5 - 2 -5.403865
+-5.403865
+getjac: (4, 1) = 0.000000
+getjac: (4, 2) = getsysinfo: find nbr 5 - 4 -22.612442
+-22.612442
+getjac: (4, 3) = getsysinfo: find nbr 5 - 4 -6.501106
+-6.501106
+getjac: (4, 4) = 36.390154
+36.390154
+getjac: (4, 5) = 9.819375
+9.819375
+getjac: (4, 6) = getsysinfo: find nbr 5 - 6 4.017949
+4.017949
+getjac: (4, 7) = 0.000000
+getjac: (4, 8) = 0.000000
+getjac: (4, 9) = 0.000000
+getjac: (4, 10) = 0.000000
+getjac: (4, 11) = 0.000000
+getjac: (4, 12) = 0.000000
+getjac: (4, 13) = 0.000000
+getjac: (4, 14) = 0.000000
+getjac: (4, 15) = 0.000000
+getjac: (4, 16) = 0.000000
+getjac: (4, 17) = 0.000000
+getjac: (4, 18) = 0.000000
+getjac: (4, 19) = 0.000000
+getjac: (4, 20) = 0.000000
+getjac: (4, 21) = 0.000000
+getjac: (5, 0) = getsysinfo: find nbr 5 - 2 2.176164
+2.176164
+getjac: (5, 1) = 0.000000
+getjac: (5, 2) = getsysinfo: find nbr 5 - 4 6.501106
+6.501106
+getjac: (5, 3) = getsysinfo: find nbr 5 - 4 -22.612442
+-22.612442
+getjac: (5, 4) = -10.089757
+-10.089757
+getjac: (5, 5) = 35.214777
+35.214777
+getjac: (5, 6) = getsysinfo: find nbr 5 - 6 0.382638
+0.382638
+getjac: (5, 7) = 0.000000
+getjac: (5, 8) = 0.000000
+getjac: (5, 9) = 0.000000
+getjac: (5, 10) = 0.000000
+getjac: (5, 11) = 0.000000
+getjac: (5, 12) = 0.000000
+getjac: (5, 13) = 0.000000
+getjac: (5, 14) = 0.000000
+getjac: (5, 15) = 0.000000
+getjac: (5, 16) = 0.000000
+getjac: (5, 17) = 0.000000
+getjac: (5, 18) = 0.000000
+getjac: (5, 19) = 0.000000
+getjac: (5, 20) = 0.000000
+getjac: (5, 21) = 0.000000
+getjac: (6, 0) = 0.000000
+getjac: (6, 1) = 0.000000
+getjac: (6, 2) = 0.000000
+getjac: (6, 3) = 0.000000
+getjac: (6, 4) = getsysinfo: find nbr 6 - 5 4.017949
+4.017949
+getjac: (6, 5) = getsysinfo: find nbr 6 - 5 0.382638
+0.382638
+getjac: (6, 6) = 19.193061
+19.193061
+getjac: (6, 7) = 0.000000
+getjac: (6, 8) = 0.000000
+getjac: (6, 9) = 0.000000
+getjac: (6, 10) = 0.000000
+getjac: (6, 11) = 0.000000
+getjac: (6, 12) = 0.000000
+getjac: (6, 13) = 0.000000
+getjac: (6, 14) = getsysinfo: find nbr 6 - 11 -4.652125
+-4.652125
+getjac: (6, 15) = getsysinfo: find nbr 6 - 11 -2.164945
+-2.164945
+getjac: (6, 16) = getsysinfo: find nbr 6 - 12 -3.610347
+-3.610347
+getjac: (6, 17) = getsysinfo: find nbr 6 - 12 -1.669213
+-1.669213
+getjac: (6, 18) = getsysinfo: find nbr 6 - 13 -6.912641
+-6.912641
+getjac: (6, 19) = getsysinfo: find nbr 6 - 13 -3.368694
+-3.368694
+getjac: (6, 20) = 0.000000
+getjac: (6, 21) = 0.000000
+getjac: (7, 0) = 0.000000
+getjac: (7, 1) = 0.000000
+getjac: (7, 2) = getsysinfo: find nbr 7 - 4 5.053944
+5.053944
+getjac: (7, 3) = getsysinfo: find nbr 7 - 4 0.268404
+0.268404
+getjac: (7, 4) = 0.000000
+getjac: (7, 5) = 0.000000
+getjac: (7, 6) = 0.000000
+getjac: (7, 7) = 21.815948
+21.815948
+getjac: (7, 8) = 0.009754
+0.009754
+getjac: (7, 9) = getsysinfo: find nbr 7 - 8 6.571558
+6.571558
+getjac: (7, 10) = getsysinfo: find nbr 7 - 9 10.190446
+10.190446
+getjac: (7, 11) = getsysinfo: find nbr 7 - 9 -0.279305
+-0.279305
+getjac: (7, 12) = 0.000000
+getjac: (7, 13) = 0.000000
+getjac: (7, 14) = 0.000000
+getjac: (7, 15) = 0.000000
+getjac: (7, 16) = 0.000000
+getjac: (7, 17) = 0.000000
+getjac: (7, 18) = 0.000000
+getjac: (7, 19) = 0.000000
+getjac: (7, 20) = 0.000000
+getjac: (7, 21) = 0.000000
+getjac: (8, 0) = 0.000000
+getjac: (8, 1) = 0.000000
+getjac: (8, 2) = getsysinfo: find nbr 7 - 4 -0.268404
+-0.268404
+getjac: (8, 3) = getsysinfo: find nbr 7 - 4 5.053944
+5.053944
+getjac: (8, 4) = 0.000000
+getjac: (8, 5) = 0.000000
+getjac: (8, 6) = 0.000000
+getjac: (8, 7) = 0.009754
+0.009754
+getjac: (8, 8) = 22.280510
+22.280510
+getjac: (8, 9) = getsysinfo: find nbr 7 - 8 -0.001147
+-0.001147
+getjac: (8, 10) = getsysinfo: find nbr 7 - 9 0.279305
+0.279305
+getjac: (8, 11) = getsysinfo: find nbr 7 - 9 10.190446
+10.190446
+getjac: (8, 12) = 0.000000
+getjac: (8, 13) = 0.000000
+getjac: (8, 14) = 0.000000
+getjac: (8, 15) = 0.000000
+getjac: (8, 16) = 0.000000
+getjac: (8, 17) = 0.000000
+getjac: (8, 18) = 0.000000
+getjac: (8, 19) = 0.000000
+getjac: (8, 20) = 0.000000
+getjac: (8, 21) = 0.000000
+getjac: (9, 0) = 0.000000
+getjac: (9, 1) = 0.000000
+getjac: (9, 2) = 0.000000
+getjac: (9, 3) = 0.000000
+getjac: (9, 4) = 0.000000
+getjac: (9, 5) = 0.000000
+getjac: (9, 6) = 0.000000
+getjac: (9, 7) = getsysinfo: find nbr 8 - 7 6.571558
+6.571558
+getjac: (9, 8) = getsysinfo: find nbr 8 - 7 -0.001147
+-0.001147
+getjac: (9, 9) = 6.571558
+6.571558
+getjac: (9, 10) = 0.000000
+getjac: (9, 11) = 0.000000
+getjac: (9, 12) = 0.000000
+getjac: (9, 13) = 0.000000
+getjac: (9, 14) = 0.000000
+getjac: (9, 15) = 0.000000
+getjac: (9, 16) = 0.000000
+getjac: (9, 17) = 0.000000
+getjac: (9, 18) = 0.000000
+getjac: (9, 19) = 0.000000
+getjac: (9, 20) = 0.000000
+getjac: (9, 21) = 0.000000
+getjac: (10, 0) = 0.000000
+getjac: (10, 1) = 0.000000
+getjac: (10, 2) = getsysinfo: find nbr 9 - 4 1.868698
+1.868698
+getjac: (10, 3) = getsysinfo: find nbr 9 - 4 0.150680
+0.150680
+getjac: (10, 4) = 0.000000
+getjac: (10, 5) = 0.000000
+getjac: (10, 6) = 0.000000
+getjac: (10, 7) = getsysinfo: find nbr 9 - 7 10.190446
+10.190446
+getjac: (10, 8) = getsysinfo: find nbr 9 - 7 0.279305
+0.279305
+getjac: (10, 9) = 0.000000
+getjac: (10, 10) = 26.918415
+26.918415
+getjac: (10, 11) = 5.656015
+5.656015
+getjac: (10, 12) = getsysinfo: find nbr 9 - 10 -11.516144
+-11.516144
+getjac: (10, 13) = getsysinfo: find nbr 9 - 10 -4.298571
+-4.298571
+getjac: (10, 14) = 0.000000
+getjac: (10, 15) = 0.000000
+getjac: (10, 16) = 0.000000
+getjac: (10, 17) = 0.000000
+getjac: (10, 18) = 0.000000
+getjac: (10, 19) = 0.000000
+getjac: (10, 20) = getsysinfo: find nbr 9 - 14 -3.343126
+-3.343126
+getjac: (10, 21) = getsysinfo: find nbr 9 - 14 -1.493981
+-1.493981
+getjac: (11, 0) = 0.000000
+getjac: (11, 1) = 0.000000
+getjac: (11, 2) = getsysinfo: find nbr 9 - 4 -0.150680
+-0.150680
+getjac: (11, 3) = getsysinfo: find nbr 9 - 4 1.868698
+1.868698
+getjac: (11, 4) = 0.000000
+getjac: (11, 5) = 0.000000
+getjac: (11, 6) = 0.000000
+getjac: (11, 7) = getsysinfo: find nbr 9 - 7 -0.279305
+-0.279305
+getjac: (11, 8) = getsysinfo: find nbr 9 - 7 10.190446
+10.190446
+getjac: (11, 9) = 0.000000
+getjac: (11, 10) = -6.222537
+-6.222537
+getjac: (11, 11) = 26.814428
+26.814428
+getjac: (11, 12) = getsysinfo: find nbr 9 - 10 4.298571
+4.298571
+getjac: (11, 13) = getsysinfo: find nbr 9 - 10 -11.516144
+-11.516144
+getjac: (11, 14) = 0.000000
+getjac: (11, 15) = 0.000000
+getjac: (11, 16) = 0.000000
+getjac: (11, 17) = 0.000000
+getjac: (11, 18) = 0.000000
+getjac: (11, 19) = 0.000000
+getjac: (11, 20) = getsysinfo: find nbr 9 - 14 1.493981
+1.493981
+getjac: (11, 21) = getsysinfo: find nbr 9 - 14 -3.343126
+-3.343126
+getjac: (12, 0) = 0.000000
+getjac: (12, 1) = 0.000000
+getjac: (12, 2) = 0.000000
+getjac: (12, 3) = 0.000000
+getjac: (12, 4) = 0.000000
+getjac: (12, 5) = 0.000000
+getjac: (12, 6) = 0.000000
+getjac: (12, 7) = 0.000000
+getjac: (12, 8) = 0.000000
+getjac: (12, 9) = 0.000000
+getjac: (12, 10) = getsysinfo: find nbr 10 - 9 -11.491956
+-11.491956
+getjac: (12, 11) = getsysinfo: find nbr 10 - 9 -4.362822
+-4.362822
+getjac: (12, 12) = 16.371841
+16.371841
+getjac: (12, 13) = 6.296927
+6.296927
+getjac: (12, 14) = getsysinfo: find nbr 10 - 11 -4.879884
+-4.879884
+getjac: (12, 15) = getsysinfo: find nbr 10 - 11 -2.115922
+-2.115922
+getjac: (12, 16) = 0.000000
+getjac: (12, 17) = 0.000000
+getjac: (12, 18) = 0.000000
+getjac: (12, 19) = 0.000000
+getjac: (12, 20) = 0.000000
+getjac: (12, 21) = 0.000000
+getjac: (13, 0) = 0.000000
+getjac: (13, 1) = 0.000000
+getjac: (13, 2) = 0.000000
+getjac: (13, 3) = 0.000000
+getjac: (13, 4) = 0.000000
+getjac: (13, 5) = 0.000000
+getjac: (13, 6) = 0.000000
+getjac: (13, 7) = 0.000000
+getjac: (13, 8) = 0.000000
+getjac: (13, 9) = 0.000000
+getjac: (13, 10) = getsysinfo: find nbr 10 - 9 4.362822
+4.362822
+getjac: (13, 11) = getsysinfo: find nbr 10 - 9 -11.491956
+-11.491956
+getjac: (13, 12) = -6.478743
+-6.478743
+getjac: (13, 13) = 16.254401
+16.254401
+getjac: (13, 14) = getsysinfo: find nbr 10 - 11 2.115922
+2.115922
+getjac: (13, 15) = getsysinfo: find nbr 10 - 11 -4.879884
+-4.879884
+getjac: (13, 16) = 0.000000
+getjac: (13, 17) = 0.000000
+getjac: (13, 18) = 0.000000
+getjac: (13, 19) = 0.000000
+getjac: (13, 20) = 0.000000
+getjac: (13, 21) = 0.000000
+getjac: (14, 0) = 0.000000
+getjac: (14, 1) = 0.000000
+getjac: (14, 2) = 0.000000
+getjac: (14, 3) = 0.000000
+getjac: (14, 4) = 0.000000
+getjac: (14, 5) = 0.000000
+getjac: (14, 6) = getsysinfo: find nbr 11 - 6 -4.608131
+-4.608131
+getjac: (14, 7) = 0.000000
+getjac: (14, 8) = 0.000000
+getjac: (14, 9) = 0.000000
+getjac: (14, 10) = 0.000000
+getjac: (14, 11) = 0.000000
+getjac: (14, 12) = getsysinfo: find nbr 11 - 10 -4.902495
+-4.902495
+getjac: (14, 13) = getsysinfo: find nbr 11 - 10 -2.062993
+-2.062993
+getjac: (14, 14) = 9.510626
+9.510626
+getjac: (14, 15) = 4.251275
+4.251275
+getjac: (14, 16) = 0.000000
+getjac: (14, 17) = 0.000000
+getjac: (14, 18) = 0.000000
+getjac: (14, 19) = 0.000000
+getjac: (14, 20) = 0.000000
+getjac: (14, 21) = 0.000000
+getjac: (15, 0) = 0.000000
+getjac: (15, 1) = 0.000000
+getjac: (15, 2) = 0.000000
+getjac: (15, 3) = 0.000000
+getjac: (15, 4) = 0.000000
+getjac: (15, 5) = 0.000000
+getjac: (15, 6) = getsysinfo: find nbr 11 - 6 2.257072
+2.257072
+getjac: (15, 7) = 0.000000
+getjac: (15, 8) = 0.000000
+getjac: (15, 9) = 0.000000
+getjac: (15, 10) = 0.000000
+getjac: (15, 11) = 0.000000
+getjac: (15, 12) = getsysinfo: find nbr 11 - 10 2.062993
+2.062993
+getjac: (15, 13) = getsysinfo: find nbr 11 - 10 -4.902495
+-4.902495
+getjac: (15, 14) = -4.320065
+-4.320065
+getjac: (15, 15) = 9.475944
+9.475944
+getjac: (15, 16) = 0.000000
+getjac: (15, 17) = 0.000000
+getjac: (15, 18) = 0.000000
+getjac: (15, 19) = 0.000000
+getjac: (15, 20) = 0.000000
+getjac: (15, 21) = 0.000000
+getjac: (16, 0) = 0.000000
+getjac: (16, 1) = 0.000000
+getjac: (16, 2) = 0.000000
+getjac: (16, 3) = 0.000000
+getjac: (16, 4) = 0.000000
+getjac: (16, 5) = 0.000000
+getjac: (16, 6) = getsysinfo: find nbr 12 - 6 -3.559238
+-3.559238
+getjac: (16, 7) = 0.000000
+getjac: (16, 8) = 0.000000
+getjac: (16, 9) = 0.000000
+getjac: (16, 10) = 0.000000
+getjac: (16, 11) = 0.000000
+getjac: (16, 12) = 0.000000
+getjac: (16, 13) = 0.000000
+getjac: (16, 14) = 0.000000
+getjac: (16, 15) = 0.000000
+getjac: (16, 16) = 6.058191
+6.058191
+getjac: (16, 17) = 4.408694
+4.408694
+getjac: (16, 18) = getsysinfo: find nbr 12 - 13 -2.498953
+-2.498953
+getjac: (16, 19) = getsysinfo: find nbr 12 - 13 -2.753295
+-2.753295
+getjac: (16, 20) = 0.000000
+getjac: (16, 21) = 0.000000
+getjac: (17, 0) = 0.000000
+getjac: (17, 1) = 0.000000
+getjac: (17, 2) = 0.000000
+getjac: (17, 3) = 0.000000
+getjac: (17, 4) = 0.000000
+getjac: (17, 5) = 0.000000
+getjac: (17, 6) = getsysinfo: find nbr 12 - 6 1.775584
+1.775584
+getjac: (17, 7) = 0.000000
+getjac: (17, 8) = 0.000000
+getjac: (17, 9) = 0.000000
+getjac: (17, 10) = 0.000000
+getjac: (17, 11) = 0.000000
+getjac: (17, 12) = 0.000000
+getjac: (17, 13) = 0.000000
+getjac: (17, 14) = 0.000000
+getjac: (17, 15) = 0.000000
+getjac: (17, 16) = -4.528879
+-4.528879
+getjac: (17, 17) = 6.024672
+6.024672
+getjac: (17, 18) = getsysinfo: find nbr 12 - 13 2.753295
+2.753295
+getjac: (17, 19) = getsysinfo: find nbr 12 - 13 -2.498953
+-2.498953
+getjac: (17, 20) = 0.000000
+getjac: (17, 21) = 0.000000
+getjac: (18, 0) = 0.000000
+getjac: (18, 1) = 0.000000
+getjac: (18, 2) = 0.000000
+getjac: (18, 3) = 0.000000
+getjac: (18, 4) = 0.000000
+getjac: (18, 5) = 0.000000
+getjac: (18, 6) = getsysinfo: find nbr 13 - 6 -6.798405
+-6.798405
+getjac: (18, 7) = 0.000000
+getjac: (18, 8) = 0.000000
+getjac: (18, 9) = 0.000000
+getjac: (18, 10) = 0.000000
+getjac: (18, 11) = 0.000000
+getjac: (18, 12) = 0.000000
+getjac: (18, 13) = 0.000000
+getjac: (18, 14) = 0.000000
+getjac: (18, 15) = 0.000000
+getjac: (18, 16) = getsysinfo: find nbr 13 - 12 -2.490291
+-2.490291
+getjac: (18, 17) = getsysinfo: find nbr 13 - 12 -2.761132
+-2.761132
+getjac: (18, 18) = 11.825612
+11.825612
+getjac: (18, 19) = 7.275714
+7.275714
+getjac: (18, 20) = getsysinfo: find nbr 13 - 14 -2.536916
+-2.536916
+getjac: (18, 21) = getsysinfo: find nbr 13 - 14 -1.198001
+-1.198001
+getjac: (19, 0) = 0.000000
+getjac: (19, 1) = 0.000000
+getjac: (19, 2) = 0.000000
+getjac: (19, 3) = 0.000000
+getjac: (19, 4) = 0.000000
+getjac: (19, 5) = 0.000000
+getjac: (19, 6) = getsysinfo: find nbr 13 - 6 3.593659
+3.593659
+getjac: (19, 7) = 0.000000
+getjac: (19, 8) = 0.000000
+getjac: (19, 9) = 0.000000
+getjac: (19, 10) = 0.000000
+getjac: (19, 11) = 0.000000
+getjac: (19, 12) = 0.000000
+getjac: (19, 13) = 0.000000
+getjac: (19, 14) = 0.000000
+getjac: (19, 15) = 0.000000
+getjac: (19, 16) = getsysinfo: find nbr 13 - 12 2.761132
+2.761132
+getjac: (19, 17) = getsysinfo: find nbr 13 - 12 -2.490291
+-2.490291
+getjac: (19, 18) = -7.552792
+-7.552792
+getjac: (19, 19) = 11.701062
+11.701062
+getjac: (19, 20) = getsysinfo: find nbr 13 - 14 1.198001
+1.198001
+getjac: (19, 21) = getsysinfo: find nbr 13 - 14 -2.536916
+-2.536916
+getjac: (20, 0) = 0.000000
+getjac: (20, 1) = 0.000000
+getjac: (20, 2) = 0.000000
+getjac: (20, 3) = 0.000000
+getjac: (20, 4) = 0.000000
+getjac: (20, 5) = 0.000000
+getjac: (20, 6) = 0.000000
+getjac: (20, 7) = 0.000000
+getjac: (20, 8) = 0.000000
+getjac: (20, 9) = 0.000000
+getjac: (20, 10) = getsysinfo: find nbr 14 - 9 -3.283312
+-3.283312
+getjac: (20, 11) = getsysinfo: find nbr 14 - 9 -1.621215
+-1.621215
+getjac: (20, 12) = 0.000000
+getjac: (20, 13) = 0.000000
+getjac: (20, 14) = 0.000000
+getjac: (20, 15) = 0.000000
+getjac: (20, 16) = 0.000000
+getjac: (20, 17) = 0.000000
+getjac: (20, 18) = getsysinfo: find nbr 14 - 13 -2.498925
+-2.498925
+getjac: (20, 19) = getsysinfo: find nbr 14 - 13 -1.275352
+-1.275352
+getjac: (20, 20) = 5.782236
+5.782236
+getjac: (20, 21) = 2.600855
+2.600855
+getjac: (21, 0) = 0.000000
+getjac: (21, 1) = 0.000000
+getjac: (21, 2) = 0.000000
+getjac: (21, 3) = 0.000000
+getjac: (21, 4) = 0.000000
+getjac: (21, 5) = 0.000000
+getjac: (21, 6) = 0.000000
+getjac: (21, 7) = 0.000000
+getjac: (21, 8) = 0.000000
+getjac: (21, 9) = 0.000000
+getjac: (21, 10) = getsysinfo: find nbr 14 - 9 1.621215
+1.621215
+getjac: (21, 11) = getsysinfo: find nbr 14 - 9 -3.283312
+-3.283312
+getjac: (21, 12) = 0.000000
+getjac: (21, 13) = 0.000000
+getjac: (21, 14) = 0.000000
+getjac: (21, 15) = 0.000000
+getjac: (21, 16) = 0.000000
+getjac: (21, 17) = 0.000000
+getjac: (21, 18) = getsysinfo: find nbr 14 - 13 1.275352
+1.275352
+getjac: (21, 19) = getsysinfo: find nbr 14 - 13 -2.498925
+-2.498925
+getjac: (21, 20) = -2.896567
+-2.896567
+getjac: (21, 21) = 5.689181
+5.689181
+ludcmp: vv[   0]=    0.0305
+ludcmp: vv[   1]=    0.1003
+ludcmp: vv[   2]=    0.0252
+ludcmp: vv[   3]=    0.0255
+ludcmp: vv[   4]=    0.0275
+ludcmp: vv[   5]=    0.0284
+ludcmp: vv[   6]=    0.0521
+ludcmp: vv[   7]=    0.0458
+ludcmp: vv[   8]=    0.0449
+ludcmp: vv[   9]=    0.1522
+ludcmp: vv[  10]=    0.0371
+ludcmp: vv[  11]=    0.0373
+ludcmp: vv[  12]=    0.0611
+ludcmp: vv[  13]=    0.0615
+ludcmp: vv[  14]=    0.1051
+ludcmp: vv[  15]=    0.1055
+ludcmp: vv[  16]=    0.1651
+ludcmp: vv[  17]=    0.1660
+ludcmp: vv[  18]=    0.0846
+ludcmp: vv[  19]=    0.0855
+ludcmp: vv[  20]=    0.1729
+ludcmp: vv[  21]=    0.1758
+0 0.000010 1.383252 0.163887

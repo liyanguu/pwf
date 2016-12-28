@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="ISO-8859-1"?> 
+
+<loadflow_case date="5/12/16" base="100">
+	<bus_data>
+		<node>
+			<bus_no>1</bus_no>
+			<bus_name>xijiao</bus_name>
+			<bus_type>SLACK</bus_type>
+			<bus_final_voltage>1.061</bus_final_voltage>
+			<bus_final_angle>0.0</bus_final_angle>
+		</node>
+		<node>
+			<bus_no>2</bus_no>
+			<bus_name>xijiao2</bus_name>
+			<bus_type>PV</bus_type>
+			<bus_final_voltage>1.045</bus_final_voltage>
+			<bus_final_angle>-5.9</bus_final_angle>
+		</node>
+	</bus_data>
+	<branch_data>
+		<branch>
+			<branch_tap_bus_no>1</branch_tap_bus_no>
+			<branch_z_bus_no>2</branch_z_bus_no>
+			<branch_type>AC_LINE</branch_type>
+			<branch_resistance>0.12</branch_resistance>
+			<branch_reactance>0.20</branch_reactance>
+			<branch_charging>0.20</branch_charging>
+		</branch>
+	</branch_data>
+</loadflow_case>
+		

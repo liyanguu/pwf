@@ -1,0 +1,118 @@
+int revsimplex(const Size n, const Size m, const Size p, const int itrlim,
+	Elm *consm, Elm *prof, Elm *pobj, Elm *solu) {
+
+	int s; /* state flag */
+	Mtx cm2, bm_in;
+	Elm obj1, *prof1, *consm2; 
+	Size i, j, *idx;
+
+	/* phase I */
+	bm_in = mtxalloc(m, m);
+	prof1 = malloc(sizeof(Elm) * n); /* aux profit (... -1) */ 
+	idx = malloc(sizeof(Size) * n);
+
+	for (i = 0; i < n - p; ++i)
+		prof1[i] = 0;
+	for ( ; i < n; ++i)
+		prof1[i] = -1.0;	
+	for (i = 0; i < n; ++i)
+		idx[i] = i;	
+	for (i = 0; i < bm_in.nrow; ++i)
+		for (j = 0; j < bm_in.ncol; ++j)
+			bm_in.val[i][j] = i == j ? 1.0 : 0;
+
+	s = simplex(n, m, itrlim, consm, prof1, idx, bm_in, &obj1, solu);
+	if (s < 0 || obj1 < 0) /* no feasible solution */
+		return -1;
+
+	/* phase II */
+	cm2 = mtxalloc(m, n - p); /* reduced constraint mtx */
+	consm2 = malloc(sizeof(Elm) * m * (n-p)); /* reduced constraint */
+	for (i = j = 0; i < n; ++i) /* remove artificial vars */
+		if (idx[i] < n - p)	
+			idx[j++] = idx[i];
+	mtxread(cm2, consm, n);
+	mtxwrite(cm2, consm2);	
+	s = simplex(n-p, m, itrlim, consm2, prof, idx, bm_in, pobj, solu);	
+	return s;
+}
+
+int simplex(const Size n, const Size m, const int itrlim,
+	Elm *consm, Elm *profit, Size *idx, Mtx bm_in,
+	Elm *object, Elm *solu) {
+	
+	int counter;
+	Size i, j, k, r;
+	Elm max, val;
+	Mtx cm; 	/* constraint matrix */
+	Mtx pv; 	/* profit vector */
+	Mtx sv; 	/* solution vector */
+	Mtx nbm; 	/* none base matrix */
+	Mtx bsv;  	/* base solution vector*/
+	Mtx bpv, nbpv;  /* base profit vector and compliment */
+	Mtx dlt_tr, yv;	/* temp value */
+	
+	/* 1. initialization: */
+	cm = mtxalloc(m, n);
+	pv = mtxalloc(n, 1);
+	sv = mtxalloc(n, 1);
+	nbm = mtxalloc(m, n - m);
+	bsv = mtxalloc(m, 1);
+	bpv = mtxalloc(m, 1);
+	nbpv = mtxalloc(n - m, 1);
+
+	mtxread(cm, consm, n);
+	mtxread(pv, profit, 1);
+	mtxread(sv, solu, 1);
+	mtxcpy(bsv, rowsub(sv, m, &idx[n-m]));
+	mtxcpy(bpv, rowsub(pv, m, &idx[n-m]));
+	mtxcpy(nbpv, rowsub(pv, n - m, idx));
+	mtxcpy(nbm, colsub(cm, n - m, idx));
+
+	/* 2. iteration */
+	for (counter = 0; counter < itrlim; ++counter) {
+		dlt_tr = mtxdif(trans(nbpv),
+			mtxmul(trans(bpv), mtxmul(bm_in, nbm)));
+		max = 0;
+		for (k = j = 0; j < dlt_tr.ncol; ++j)
+			if (dlt_tr.val[0][j] > max) {
+				k = j;
+				max = dlt_tr.val[0][j];
+			}
+		if (max <= EPS) {
+			mtxwrite(sv, solu);
+			mtxwrite(mtxmul(trans(bpv), bsv), object);
+			return 0;
+		}
+		yv = mtxmul(bm_in, colsub(cm, 1, &idx[k]));	
+		max = 0;
+		for (r = i = 0; i < yv.nrow; ++i) 	
+			if ((val=yv.val[i][0]/bsv.val[i][0]) > max) {
+				max = val;
+				r = i;
+			}
+
+		/* update */
+		swap(Size, idx[k], idx[n-m+r]);
+		for (j = 0; j < bm_in.ncol; ++j)
+			bm_in.val[r][j] /= yv.val[r][0];
+		for (i = 0; i < bm_in.nrow; ++i)
+			if (i != r) for (j = 0; j < bm_in.ncol; ++j)
+				bm_in.val[i][j]-=yv.val[i][0]*bm_in.val[r][j];
+		for (i = 0; i < bsv.nrow; ++i) {
+			if (i != r)
+				bsv.val[i][0] -= yv.val[i][0] / max;
+			else
+				bsv.val[i][0] = 1 / max;
+			sv.val[idx[n-m+i]][0] = bsv.val[i][0];
+		}
+		sv.val[idx[k]][0] = 0;
+		mtxcpy(bpv, rowsub(pv, m, &idx[n-m]));
+		mtxcpy(nbpv, rowsub(pv, n - m, idx));
+		mtxcpy(nbm, colsub(cm, n - m, idx));
+	}
+	mtxwrite(sv, solu);
+	mtxwrite(mtxmul(trans(bpv), bsv), object);
+	return -1;
+}
+

@@ -1,0 +1,12 @@
+input load range:
+input number of generators:
+input generator data:
+pg	pgmax	pgmin	a(pg^2)	b(pg)	c
+input step of lamda and eps:
+load range:    0.65MW -    3.20MW
+num of gens: 5
+step of lamda: 0.010$/MWh
+output power eps: 0.010MW
+  lamda      PD    PG 1    PG 2    PG 3    PG 4    PG 5    IC 1    IC 2    IC 3    IC 4    IC 5    fuel
+  $/MWh      MW      MW      MW      MW      MW      MW   $/MWh   $/MWh   $/MWh   $/MWh   $/MWh     $/h
+ 100.01    0.65    0.10    0.20    0.15    0.10    0.10  212.60  315.00  475.00  358.36  400.00  181.92

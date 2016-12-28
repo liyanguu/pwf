@@ -1,0 +1,3 @@
+gcc $* -I.. \
+	../lpsolve55/liblpsolve55.a ../simplex/mtx.c ../pwf.c ../cdf.c \
+	-lm -ldl
