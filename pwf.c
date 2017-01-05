@@ -2,9 +2,26 @@
 #include <stdlib.h>
 #include <math.h>
 #include <stdarg.h>
+#include <fenv.h>
 #include "pwf.h"
 #include "simplex/mtx.h"
 #include "msg.h"
+
+void print_except(void) {
+	int res = fetestexcept(FE_ALL_EXCEPT);
+
+	if (res & FE_INEXACT)
+		printf("warning: floating point: loss precision\n");
+	if (res & FE_UNDERFLOW)
+		printf("warning: floating point: underflow\n");
+	if (res & FE_OVERFLOW)
+		printf("warning: floating point: overflow\n");
+	if (res & FE_DIVBYZERO)
+		printf("warning: floating point: div by zero\n");
+	if (res & FE_INVALID)
+		printf("warning: floating point: invalid operation\n");
+	feclearexcept(FE_ALL_EXCEPT);
+}
 
 /* makecomp: return a complex number (x, y) */
 struct comp makecomp(double x, double y) {
@@ -84,7 +101,11 @@ struct comp comprec(struct comp a) {
 
 /* compscale: return the scale of complex a */
 double compscale(struct comp a) {
-	return sqrt(a.x * a.x + a.y * a.y);
+	double res;
+
+	res = (a.x * a.x + a.y * a.y);
+	res = sqrt(res);
+	return res;
 }
 
 /* angle: return the angle of complex a in rad, 
@@ -156,6 +177,12 @@ void getsize(int *maxnd, int *maxbr) {
 	*maxbr = nbranch;
 }
 
+struct node **getnodelist(int n) {
+	if (n < 0 || n >= nnode)
+		return NULL;
+	return &all_node[n];
+}
+
 struct node *getnode(int n) {
 	if (n < 0 || n >= nnode)
 		return NULL;
@@ -163,13 +190,15 @@ struct node *getnode(int n) {
 		return all_node[n];
 }
 
-int addnode(struct node *t) {
-	if (nnode >= MAXNODE || t == NULL)
-		return -1;
-	else {
-		all_node[nnode++] = t;
-		return nnode-1;
-	}
+struct node *addnode(void) {
+	struct node *t;
+
+	if (nnode >= MAXNODE)
+		return NULL;
+	else if ((t=malloc(sizeof(*t))) == NULL)
+		return NULL;
+	all_node[nnode++] = t;
+	return t;
 }
 
 void nodefree(struct node *t) {
@@ -192,13 +221,15 @@ struct branch *getbranch(int bn) {
 		return all_branch[bn];
 }
 
-int addbranch(struct branch *b) {
-	if (nbranch >= MAXBRANCH || b == NULL)
-		return -1;
-	else {
-		all_branch[nbranch++] = b;
-		return nbranch-1;
-	}
+struct branch *addbranch(void) {
+	struct branch *b;
+
+	if (nbranch >= MAXBRANCH)
+		return NULL;
+	else if ((b=malloc(sizeof(*b))) == NULL)
+		return NULL;
+	all_branch[nbranch++] = b;
+	return b;
 }
 
 void clear(void) {
@@ -228,12 +259,12 @@ void printnode(void) {
 	struct node **pt, *t;
 	struct comp pw;
 
-	printf("%10s %5s %20s %20s %20s\n", 
+	printf("%10s %4s %20s%20s%20s\n", 
 		"bus no.", "type", "volt", "P + jQ", "P + jQ(计算值)");
 	loopnode(pt) {
 		t = *pt;
 		pw = node_pw(t);
-		printf("%s%9d %5d %10.4f%10.4f" "%10.4f%10.4f"
+		printf("%s%9d %4d %10.4f%10.4f" "%10.4f%10.4f"
 			"%10.4f%10.4f\n", 
 			(t->flag & (VOLTOVER | VOLTUNDER)) ? "*" : " ",
 			t->no, 
@@ -252,7 +283,7 @@ void printybus(void) {
 		printf("%4d: ( %.4f %.4f)", 
 			(*t)->no, (*t)->adm_self.x, (*t)->adm_self.y);
 		for (pc = (*t)->nbr; pc != NULL; pc = pc ->next)
-			printf(" ( %.4f %.4f)", - pc->b->adm_b.x, - pc->b->adm_b.y);
+			printf(" ( %.4f %.4f)", - pc->b->adm_se.x, - pc->b->adm_se.y);
 		printf("\n");
 	}
 }
@@ -272,27 +303,21 @@ void printlinef(void) {
 	}
 }
 
-/* nodecalc: assembly ybus for all nodes */
-void nodecalc(void) {
+/* ycalc: assembly ybus for all nodes */
+void ycalc(void) {
+	struct node **t;
 	struct branch **p;
 	struct comp adm;
 
 	loopbranch(p) {
-		/* add branch adm */
-		adm = compadd((*p)->inode->adm_self, (*p)->adm_b);	
-		/* and shunt adm */
-		adm = compadd(adm, (*p)->iadm_sh);		
-		/* to self adm */
-		(*p)->inode->adm_self = adm;
-		/* add nbr*/
 		(*p)->inode->nbr = addchain((*p)->inode->nbr, 
 					(*p)->jnode, *p);	
-		/* the other side */
-		adm = compadd((*p)->jnode->adm_self, (*p)->adm_b);	
-		adm = compadd(adm, (*p)->jadm_sh);
-		(*p)->jnode->adm_self = adm;
 		(*p)->jnode->nbr = addchain((*p)->jnode->nbr, 
 					(*p)->inode, *p);
+		branchcalc(*p);
+	}
+	loopnode(t) {
+		nodecalc(*t);
 	}
 }
 
@@ -305,9 +330,41 @@ struct comp node_pw(struct node *t) {
 	/* add by Vk * Yik */
 	for (pc = t->nbr; pc != NULL; pc = pc->next)
 		p_temp = compadd(p_temp, compmul(pc->n->volt,		
-			 compinv(pc->b->adm_b)));	/* Yik = -yik */
+			 compinv(pc->b->adm_se)));	/* Yik = -yik */
 	p_temp = compmul(p_temp, compcnj(t->volt));	/* mul by Vi* */
 	return compcnj(p_temp);		/* P - jQ => P + jQ*/
+}
+
+Elm node_p(struct node *t) {
+	Elm vi = compscale(t->volt);
+	Elm dan;
+	Elm powerp;
+	struct nodechain *pc;
+
+	powerp = vi * t->adm_self.x;
+	for (pc = t->nbr; pc != NULL; pc = pc->next) {
+		dan = angle(t->volt) - angle(pc->n->volt);
+		powerp += compscale(pc->n->volt)*(
+			-pc->b->adm_se.x * cos(dan) +
+			-pc->b->adm_se.y * sin(dan));
+	}
+	return powerp * vi;
+}
+
+Elm node_q(struct node *t) {
+	Elm vi = compscale(t->volt);
+	Elm dan;
+	Elm powerq;
+	struct nodechain *pc;
+
+	powerq = -vi * t->adm_self.y;
+	for (pc = t->nbr; pc != NULL; pc = pc->next) {
+		dan = angle(t->volt) - angle(pc->n->volt);
+		powerq += compscale(pc->n->volt)*(
+			-pc->b->adm_se.x * sin(dan) +
+			pc->b->adm_se.y * cos(dan));
+	}
+	return powerq * vi;
 }
 
 /* node_volt: return nodal voltage V = e + jf */
@@ -318,7 +375,7 @@ struct comp node_volt(struct node *t) {
 	v_temp = compdiv(compcnj(t->pw), compcnj(t->volt));	/* Si* / Vi* */
 	for (pc = t->nbr; pc != NULL; pc = pc->next)
 		v_temp = compadd(v_temp, 	/* add by - Vk * Yik  = Vk * yik */
-			 compmul(pc->b->adm_b, pc->n->volt));
+			 compmul(pc->b->adm_se, pc->n->volt));
 	v_temp = compdiv(v_temp, t->adm_self);	/* div by Yii */
 	return v_temp;
 }
@@ -356,7 +413,7 @@ struct comp b_flow(int dir, struct branch *pb) {
 		adm = pb->jadm_sh;
 	}
 	p_temp = compmns(v1, v2);	/* (Vi - Vj) */
-	p_temp = compmul(p_temp, pb->adm_b);	/* (Vi - Vj) * yij */
+	p_temp = compmul(p_temp, pb->adm_se);	/* (Vi - Vj) * yij */
 	p_temp = compadd(p_temp, 		/* add self part */
 		 compmul(v1, adm));		/* Vi * yij0 */
 	p_temp = compmul(v1, compcnj(p_temp));	/* mul Vi, Pij = Vi * Iij* */
@@ -397,18 +454,17 @@ int checknode(void) {
 		case  PV:
 			pw = node_pw(t);
 			q_gen = t->loadmvar/basemva + pw.y;
-			if (q_gen >= t->q_min && q_gen <= t->q_max) {
-				t->pw.y = pw.y;
-				break;
-			}
 			/* out control range */
 			if (q_gen < t->q_min) {
 				q_gen = t->q_min;
 				t->flag |= VOLTOVER;
-			} else {
+			} else if (q_gen > t->q_max) {
 				q_gen = t->q_max;
 				t->flag |= VOLTUNDER;
-			}	
+			} else {	/* within limit */
+				t->pw.y = pw.y;
+				break;
+			}
 			t->pw.y = q_gen - t->loadmvar/basemva;
 			t->volt = makecomp(1.0, .0);	/* flat start */
 			t->type = PQ;		/* PV to PQ */
@@ -481,85 +537,76 @@ int gauss(double *errf, double *errx) {
 	return 0;
 }
 
-static Spm jac;
-Mtx fulljac;
+Mtx jac;
+Spm jacs;
 static struct jacidx jacobian_index[MAXJAC];
-static double arg[MAXJAC];	/* roots of mismatch functions */
-static Size indx[MAXJAC];	/* ! not used : swap index of ludcmp & lubksb */
 
 /* calc Jacobian element node by node */
-void jacalc(void) {
-	struct node **t;
+void jacalc(struct node *t) {
 	struct nodechain *ch;
-	struct comp pw, vi, vm, yii, yim;
+	struct comp pw, vi, vm, yii, yim, dum;
 	struct jacelm tmp;
-	double a, vv, dum;
+	Elm vv;
 
-	for (t = all_node; t < all_node+nnode; ++t) {
-		pw = node_pw(*t);
-		vi = (*t)->volt;
-		yii = (*t)->adm_self;
-		vv = compscale(vi);
-		vv *= vv;
-		tmp.h = -pw.y - vv * yii.y;
-		tmp.l = pw.y - vv * yii.y;
-		tmp.m = pw.x + vv * yii.x;
-		tmp.n = pw.x - vv * yii.x;
-		(*t)->jelm = tmp;
-		for (ch = (*t)->nbr; ch != NULL; ch = ch->next) {
-			vm = ch->n->volt;
-			yim = compinv(ch->b->adm_b);
-			a = angle(vm)-angle(vi)+angle(yim);
-			dum = compscale(compmul(vi, compmul(vm, yim)));
-			ch->jelm.h = -dum * sin(a);
-			ch->jelm.m = dum * cos(a);
-			ch->jelm.l = ch->jelm.h;
-			ch->jelm.n = -ch->jelm.m;
-		}
+	t->pw_act = pw = node_pw(t);
+	vi = t->volt;
+	yii = t->adm_self;
+	vv = compscale(vi);
+	vv *= vv;
+	tmp.h = -pw.y - vv * yii.y;
+	tmp.l = pw.y - vv * yii.y;
+	tmp.m = pw.x + vv * yii.x;
+	tmp.n = pw.x - vv * yii.x;
+	t->jelm = tmp;
+	for (ch = t->nbr; ch != NULL; ch = ch->next) {
+		vm = ch->n->volt;
+		yim = compinv(ch->b->adm_se);
+		dum = compmul(vm, yim);
+		ch->jelm.h = dum.x * vm.y - dum.y * vm.x;
+		ch->jelm.m = dum.x * vm.x + dum.y * vm.y;
+		ch->jelm.l = ch->jelm.h;
+		ch->jelm.n = -ch->jelm.m;
 	}
 }
 
 /* create the system Jacobian's index, put the mismach function's
 	left side in arg, and set the total error errf */
-int makeindex(double *errf) {
+int makeindex(Elm *errf, Elm *arg) {
 	struct node *t;
 	struct comp pw;
 	struct jacidx *jacp;
-	Size i, j, dim;
+	Size i, j;
 
 	jacp = jacobian_index;
 	j = 0;
 	for (i=0; (t=getnode(i)) != NULL; ++i) {
 		if (t->type == SLACK)
 			continue;	/* skip slack bus */
-		pw = node_pw(t);
-		jacp->ltype = DP;
-		jacp->rtype = DA;
-		jacp->n = t;
-		arg[j] = t->pw.x - pw.x;
-		jacp++;
+		jacalc(t);
+		/* PQ and PV bus */
+		jacp[j].ltype = DP;
+		jacp[j].rtype = DA;
+		jacp[j].n = t;
+		arg[j] = t->pw.x - t->pw_act.x;
 		j++;
 		if (t->type == PQ) { /* PQ node has 2 indies, ie. DP, DQ */
-			jacp->ltype = DQ;
-			jacp->rtype = DV;
-			jacp->n = t;
-			arg[j] = t->pw.y - pw.y;
-			jacp++;
+			jacp[j].ltype = DQ;
+			jacp[j].rtype = DV;
+			jacp[j].n = t;
+			arg[j] = t->pw.y - t->pw_act.y;
 			j++;
 		}
 	}
-	dim = jacp - jacobian_index;
-	norm(arg, dim, errf);
-	i = 0;
-	for (jacp = jacobian_index; jacp < jacobian_index+dim; ++jacp)
+	norm(arg, j, errf);
+	for (i=0; i < j; i++)
 		msg(stderr, "pwf: makeindex: %4d %12.6f\n", 
-			jacp->n->no, arg[i++]);
-	msg(stderr, "pwf: makeindex: %4d\n", dim);
-	return dim;
+			jacp[i].n->no, arg[i]);
+	msg(stderr, "pwf: makeindex: %4d\n", j);
+	return j; 
 }
 
-void updateindex(Size dim, double *errx) {
-	Size i; 
+void updateindex(Elm *arg, Size dim, Elm *errx) {
+	Size i;
 	struct jacidx *jacp = jacobian_index;
 	struct node *t;
 	Elm an, vl;
@@ -571,57 +618,16 @@ void updateindex(Size dim, double *errx) {
 		vl = compscale(t->volt);
 		switch(jacp[i].rtype) {
 		case DA:
-			an += arg[i];
+			an = an + arg[i];
+			msg(stderr, "pwf: updateindex: da is %g\n", arg[i]);
 			break;
 		case DV:
-			vl += arg[i] * vl;	
+			vl += arg[i] * vl;
+			msg(stderr, "pwf: updateindex: dv is %g\n", arg[i]);
 			break;
 		}
 		t->volt = makecomp(vl*cos(an), vl*sin(an));
 	}
-}
-
-Elm getsysinfo(struct node *ti, struct node *tj, int name) {
-	struct jacelm quad;
-	struct nodechain *ch;
-	static Elm sen;
-	struct comp cval;
-
-	if (ti->no == tj->no) {
-		quad = ti->jelm;
-		cval = ti->adm_self;
-	} else if ((ch = findnbr(ti, tj)) != NULL) {
-		quad = ch->jelm;
-		cval = compinv(ch->b->adm_b);
-	} else
-		return 0;
-
-	switch (name) {
-	case 'h':
-		sen = quad.h;
-		break;
-	case 'l':
-		sen = quad.l;
-		break;
-	case 'm':
-		sen = quad.m;
-		break;
-	case 'n':
-		sen = quad.n;
-		break;
-	case 'g':
-		sen = cval.x;
-		break;
-	case 'b':
-		sen = cval.y;
-		break;
-	default:
-		msg(stderr, "pwf: getsysinfo: wrong type %c\n", name);
-		return 0;
-	}
-	msg(stderr, "pwf: getsysinfo: %d, %d, %f\n",
-				ti->no, tj->no, sen);
-	return sen;
 }
 
 int jactype(Size i, Size j) {
@@ -645,35 +651,49 @@ int jactype(Size i, Size j) {
 }
 
 void makejac(int dim) {
-	Elm elm;
 	Size i, j;
 	struct node *ti, *tj;
 
-	if (fulljac != NULL)
-		mtxfree(fulljac);
-	fulljac = mtxalloc(dim, dim);
 	if (jac != NULL)
-		deletsp(jac);
-	jac = makesp(dim, dim);
+		mtxfree(jac);
+	jac = mtxalloc(dim, dim);
 
 	for (i = 0; i < dim; i++) {
-		ti = findnode(jacobian_index[i].n->no);
+		ti = jacobian_index[i].n;
 		for (j = 0; j < dim; j++) {
-			tj = findnode(jacobian_index[j].n->no);
-			elm=getsysinfo(ti, tj, jactype(i, j));
-			if (elm != 0)
-				add(jac, i, j, elm);
+			tj = jacobian_index[j].n;
+			jac->val[i][j]=getsysinfo(ti, tj, jactype(i, j));
+		}
+	}
+}
+
+void makejacs(int dim) {
+	Size i, j;
+	struct node *ti, *tj;
+
+	if (jacs != NULL)
+		deletsp(jacs);
+	jacs = makesp(dim, dim);
+
+	for (i = 0; i < dim; i++) {
+		ti = jacobian_index[i].n;
+		for (j = 0; j < dim; j++) {
+			tj = jacobian_index[j].n;
+			add(jacs, i, j, getsysinfo(ti, tj, jactype(i, j)));
 		}
 	}
 }
 
 void printjac(void) {
-	printsp("System Jacobian", jac);
+	if (jac != NULL)
+		mtxprint("System Jacobian", jac);
+	if (jacs != NULL)
+		printsp("Jacobian Sparse", jacs);
 }
 
 /* update: update node voltage and angle according to
 	mismatch function root arg */
-void update(Size dim, double *errx) {
+void update(Elm *arg, Size dim, Elm *errx) {
 	int i, j;
 	struct node *t;
 	double vl, an, dan, dvl;
@@ -711,42 +731,71 @@ void update(Size dim, double *errx) {
 		}
 }
 
+static double df[MAXJAC];	/* roots of mismatch functions */
+static Size indx[MAXJAC];	/* swap index of ludcmp & lubksb */
+
 int newt(double *errf, double *errx) {
 	Size d;
 	Elm det;
 
-	jacalc();
-	d = makeindex(errf);
+	d = makeindex(errf, df);
 	makejac(d);
-	sptom(jac, fulljac);
-	ludcmp(fulljac, indx, &det);
-	lubksb(fulljac, indx, arg);
-	/*
-	gauss_jordan(jac, arg);
-	*/
-	updateindex(d, errx);
+	ludcmp(jac, indx, &det);
+	lubksb(jac, indx, df);
+	updateindex(df, d, errx);
+	return checknode();
+}
+
+int newts(double *errf, double *errx) {
+	Size d;
+
+	d = makeindex(errf, df);
+	makejacs(d);
+	gauss_jordan(jacs, df);
+	updateindex(df, d, errx);
 	return checknode();
 }
 
 int pf(int lim, double tol, char *method) {
 	int i;
 	double errf, errx;
-	int (*powerfunc)(double *, double *);
-
-	if (*method == 'g')
-		powerfunc = gauss;
-	else if (*method == 'n')
-		powerfunc = newt;
-	else
+	int (*powerf)(double *, double *);
+	
+	switch(*method) {
+	case 'n':
+		powerf = newt;
+		break;
+	case 's':
+		powerf = newts;
+		break;
+	case 'g':
+		powerf = gauss;
+		break;
+	default:
 		return -1;
+	}
 
+	reorder("nconnect");
 	for (i = 1; i <= lim; i++) {
-		if (powerfunc(&errf, &errx) > 0)
+		if (powerf(&errf, &errx) > 0)
 			continue;
-		if (errf <= tol || errx <= tol)
+		if (errf <= tol)
 			break;
 	}
+	reorder("busno");
 	return i;
+}
+
+int getinfo(Elm *v, char *name) {
+	struct node **t;
+	Elm *pv = v;
+
+	if (strcmp(name, "volt") == 0)
+		loopnode(t)
+			*v++ = compscale((*t)->volt);
+	else
+		return -1;
+	return v - pv;
 }
 
 Elm getnodeinfo(int n, char *name) {
@@ -772,4 +821,62 @@ void setnodeinfo(int n, Elm result, char *name) {
 		} else if (strcmp(name, "qgen")==0)
 			t->pw.y = result - t->loadmvar/basemva;	
 	}
+}
+
+Elm getsysinfo(struct node *ti, struct node *tj, int name) {
+	struct jacelm quad;
+	struct nodechain *ch;
+	static Elm sen;
+	struct comp cval;
+
+	if (ti->no == tj->no) {
+		quad = ti->jelm;
+		cval = ti->adm_self;
+	} else if ((ch = findnbr(ti, tj)) != NULL) {
+		quad = ch->jelm;
+		cval = compinv(ch->b->adm_se);
+	} else
+		return 0;
+
+	switch (name) {
+	case 'h':
+		sen = quad.h;
+		break;
+	case 'l':
+		sen = quad.l;
+		break;
+	case 'm':
+		sen = quad.m;
+		break;
+	case 'n':
+		sen = quad.n;
+		break;
+	case 'g':
+		sen = cval.x;
+		break;
+	case 'b':
+		sen = cval.y;
+		break;
+	default:
+		msg(stderr, "pwf: getsysinfo: wrong type %c\n", name);
+		return 0;
+	}
+	return sen;
+}
+
+int nodecmp(const void *t1, const void *t2) {
+	return (*(struct node * const *)t1)->nconnect -
+		(*(struct node * const *)t2)->nconnect;
+}
+
+int nodenocmp(const void *t1, const void *t2) {
+	return (*(struct node * const *)t1)->no -
+		(*(struct node * const *)t2)->no;
+}
+
+void reorder(char *name) {
+	if (strcmp(name, "busno") == 0)
+		qsort(all_node, nnode, sizeof(all_node[0]), nodenocmp);
+	else if (strcmp(name, "nconnect") == 0)
+		qsort(all_node, nnode, sizeof(all_node[0]), nodecmp);
 }

@@ -18,7 +18,7 @@
 		/* 21 terms */
 #define BRANCHFMT "%d %d %d %d %d %d %lf %lf %lf %lf %lf %lf %d %d %lf %lf %lf %lf %lf %lf %lf"
 
-#define BRANCHPFMT "%4d %4d%3d%3d %1d %1d%10.5f%10.5f%10.5f%6d%6d%6d%4d %d %7.4f %7.4f%7.4f%7.4f%7.5f %7.4f%7.4f\n"
+#define BRANCHPFMT "%4d %4d%3d%3d %1d %1d%10.5f%10.5f%10.5f%6d%6d%6d%4d %d %7.4g %7.4g%7.4g%7.4g%7.5g %7.4g%7.4g\n"
 
 int section, lineno;
 
@@ -81,7 +81,7 @@ int readcdf(FILE *fp) {
 				break;
 			}
 	}
-	nodecalc();
+	ycalc();
 	return 1;
 }
 
@@ -90,11 +90,19 @@ int writecdf(FILE *fp) {
 	struct node *t;
 	struct branch *b;
 	time_t mytime;
+	struct tm *loctime;
+	char month[5];
+	int m;
 	int i, maxnode, maxbranch;
 
 	getsize(&maxnode, &maxbranch);
 	time(&mytime);
-	strftime(senddate, sizeof(senddate), "%D", localtime(&mytime));
+	loctime = localtime(&mytime);
+	strftime(senddate, sizeof(senddate), "%D", loctime);
+	strncpy(sendername, "WHU LAB", sizeof(sendername)-1);
+	strftime(year, sizeof(year), "%Y", loctime);
+	strftime(month, 5, "%m", loctime);
+	strcpy(season, ((m=atoi(month)) <= 8) ? "S": "W");
 	titlewrite(fp);
 
 	fprintf(fp, "BUS DATA FOLLOWS %30d ITEMS\n", maxnode);
@@ -162,14 +170,11 @@ int busscan(char *line) {
 			&rcbusno) != 18) 
 		return 0;
 	name[13] = '\0';
-	if ((pt = makenode()) == NULL) {
+	if ((pt = addnode()) == NULL) {
 		fprintf(stderr, "busscan: can't make node\n");
 		return 0;
 	}
-	if (addnode(pt) < 0) {
-		fprintf(stderr, "busscan: too many nodes\n");
-		return 0;
-	}
+	makenode(pt);
 	return 1;
 }
 
@@ -186,10 +191,16 @@ int branchscan(char *line) {
 	&tfinalturn, &tfinalang,
 	&mintap, &maxtap, 
 	&stepsize, 
-	&minvolt, &maxvolt) != 21)
+	&minvolt, &maxvolt) != 21) {
+		fprintf(stderr, "branchscan: wrong cdf line:\n\t%s\n",
+			line);
 		return 0;
-	if (addbranch(makebranch()) < 0)
-			return 0; 
+	}
+	if ((pb=addbranch()) == NULL) {
+		fprintf(stderr, "branchscan: can't make branch\n");
+		return 0;
+	}
+	makebranch(pb);
 	return 1;
 }
 
@@ -219,7 +230,7 @@ int writebus(struct node *t, FILE *fp) {
 int writebranch(struct branch *b, FILE *fp) {
 	struct comp imp;
 
-	imp = comprec(b->adm_n);
+	imp = comprec(b->adm_line);
 	fprintf(fp, BRANCHPFMT,
 		b->inode->no, b->jnode->no,
 		1, 1, 1, b->type,
@@ -240,13 +251,9 @@ int trim(char *s) {
 }
 
 /* makenode: make a node from cdf bus data */
-struct node 
-*makenode(void) {
-	struct node *t;
+struct node *makenode(struct node *t) {
 	double ang_rad;
 
-	if ((t=(struct node *) malloc(sizeof(struct node)))==NULL)
-		return NULL;
 	t->no = busno;
 	t->flag = 0;
 	t->type = bustype;
@@ -259,7 +266,7 @@ struct node
 	t->q_max = maxmvar / basemva;
 	t->volt_ctl = volt_ctl;
 	t->adm_sh = makecomp(shcon, shsus);
-	t->adm_self = t->adm_sh;
+	t->adm_self = makecomp(0, 0);
 	ang_rad = finalang / 180.0 * 3.141592654;
 	t->volt = makecomp(finalvolt * cos(ang_rad), 
 			finalvolt * sin(ang_rad));
@@ -268,14 +275,9 @@ struct node
 	return t;
 }
 
-struct branch 
-*makebranch(void) {
+struct branch *makebranch(struct branch *b) {
 	struct comp imp_b;
-	struct comp adm, k1;	/* k one */
-	struct branch *b;
 
-	if ((b = (struct branch *) malloc(sizeof(struct branch))) == NULL)
-		return NULL; 
 	b->inode = findnode(tbusno);	
 	b->jnode = findnode(zbusno);
 	if (b->inode == NULL || b->jnode == NULL) {
@@ -286,34 +288,56 @@ struct branch
 	b->type = branchtype;
 	b->linechar = linechar;
 	imp_b = makecomp(br, bx);
-	b->adm_n = comprec(imp_b);
+	b->adm_line = comprec(imp_b);
+	b->k = makecomp(tfinalturn, tfinalang);	/* final turn ratio k */
+	return b;
+}
+
+void branchcalc(struct branch *b) {
+	struct comp adm; 
+	struct comp k1;	/* k one */
+
 	switch (b->type) {
-	case AC:	/* ac line */
-		b->adm_b = b->adm_n;
-		b->iadm_sh = makecomp(.0, linechar/2.0);
-		b->jadm_sh = makecomp(.0, linechar/2.0);
+	case AC: case FT:	/* ac line 暂时把FT也归入此类 */
+		b->adm_se = b->adm_line;
+		b->iadm_sh = makecomp(.0, b->linechar/2.0);
+		b->jadm_sh = makecomp(.0, b->linechar/2.0);
 		break;
-	case FT:	/* fixed voltage ratio or fiexd phase angle */
-		b->k = makecomp(tfinalturn, tfinalang);	/* final turn ratio k */
+	case 99:	/* fixed voltage ratio or fiexd phase angle */
 		k1 = makecomp(1.0, .0);
 		k1 = compmns(b->k, k1);			/* k - 1 */
-		b->adm_b = compmul(b->adm_n, b->k); 		/* yk */
-		adm = makecomp(.0, linechar/2.0);		/* 1/2 line char y0 */
+		b->adm_se = compmul(b->adm_line, b->k); 		/* yk */
+		adm = makecomp(.0, b->linechar/2.0);		/* 1/2 line char y0 */
 		adm = compmul(adm, compmul(b->k ,b->k));	/* y0 . k^2 */
 		adm = compadd(adm, 				/* + y . k . (k-1) */
-			compmul(b->adm_n, compmul(b->k, k1)));
+			compmul(b->adm_line, compmul(b->k, k1)));
 		b->iadm_sh = adm;
 		adm = makecomp(.0, linechar/2.0);		/* y0 */
-		adm = compadd(adm, compmul(b->adm_n, compinv(k1)));	/* +(1-k)y */
+		adm = compadd(adm, compmul(b->adm_line, compinv(k1)));	/* +(1-k)y */
 		b->jadm_sh = adm;
 		break;
 	default:
 		fprintf(stderr, "cdf error: wrong branch type, %d\n", b->type);
-		return NULL;
+		break;
 	}
-	return b;
 }
 
+void nodecalc(struct node *t) {
+	struct nodechain *pc;
+	struct comp adm;
+
+	adm = t->adm_sh;
+	t->nconnect = 0;
+	for (pc = t->nbr; pc != NULL; pc = pc->next) {
+		adm = compadd(pc->b->adm_se, adm);
+		if (t == pc->b->inode)
+			adm = compadd(pc->b->iadm_sh, adm);
+		else
+			adm = compadd(pc->b->jadm_sh, adm);
+		t->nconnect++;
+	}
+	t->adm_self = adm;
+}
 
 /* initdata: read from cdf file fp and initialize system data ,
 	return 1 on success, 0 otherwise

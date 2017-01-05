@@ -8,6 +8,8 @@ int main() {
 	print_test_msg = 1;
 
 	readcdf(stdin);
-	printlinef();
+	printnode();
+	pf(100, 1e-3, "n");
+	printjac();
 	printnode();
 }

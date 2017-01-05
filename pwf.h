@@ -2,13 +2,15 @@
 #define H_PWF
 
 #include <stdio.h>
+#include <math.h>
 #include "simplex/mtx.h"
 
 #define PI 3.141592654 
 #define MAXNODE 500
 #define MAXBRANCH 1000
 #define MAXJAC 1000
-#define fixzero(x) (((x) <= ZEROEPS && (x) >= -ZEROEPS) ? 0 : (x))
+#define fixzero(x) (((x) <= 1e-8 && (x) >= -1e-8) ? 0. : (x))
+#define reducerad(x) (((x) >= 2*PI) ? fmod(x, 2*PI) : (x))
 
 enum { TITLE, BUS, BRANCH, END };
 enum nodetype { PQ, MVARPQ, PV, SLACK };
@@ -32,10 +34,12 @@ struct node {
 	int no;
 	int flag;
 	int type;
+	int nconnect;
 	char *name;
 	double basekv;
 	double loadmw, loadmvar;
 	struct comp pw;		/* net power injection p.u. == Pg-Pd + j(Qg-Qd)*/
+	struct comp pw_act;	/* actual calculated power */
 	struct comp volt;	/* initial nodal voltage p.u. */
 	struct comp adm_sh;	/* shunt G, B in p.u. */ 
 	struct nodechain *nbr;
@@ -52,8 +56,8 @@ struct branch {
 	struct node *jnode;	/* z side  node ptr (z bus) */
 	double linechar;	/* total line charging, ref to paper 04075293 */
 	struct comp k;		/* transformer final turns ratio (complex) */ 
-	struct comp adm_n;	/* normal (original) adm of a transformer */
-	struct comp adm_b;	/* branch admitance of pi circuit */
+	struct comp adm_line;	/* normal (line) adm of a transformer */
+	struct comp adm_se;	/* branch series admitance of pi circuit */
 	struct comp iadm_sh;	/* tap side shunt adm of pi circuit */
 	struct comp jadm_sh;	/* z side shunt adm of pi circuit*/
 };
@@ -85,7 +89,8 @@ struct comp compcnj(struct comp);
 double compscale(struct comp);
 double angle(struct comp);
 
-void nodecalc(void);
+void ycalc(void);
+void jacalc(struct node *);
 struct comp node_pw(struct node *);
 struct comp node_flow(struct node *pn);
 struct comp b_flow(int, struct branch *);
@@ -99,9 +104,9 @@ struct node *findnode(int no);
 struct nodechain *findnbr(struct node *, struct node *);
 void getsize(int*, int*);
 struct node *getnode(int);
-int addnode(struct node *);
 struct branch *getbranch(int);
-int addbranch(struct branch *);
+struct node *addnode(void);
+struct branch *addbranch(void);
 void clear(void);
 void printjac(void);
 void printnode(void);
@@ -110,6 +115,8 @@ void printlinef(void);
 int pf(int lim, double tol, char *method);
 void setnodeinfo(int, Elm, char *);
 Elm getnodeinfo(int, char *);
+Elm getsysinfo(struct node*, struct node*, int name);
+void reorder(char *);
 
 int trim(char *s);
 int titlescan(char *line);
@@ -118,8 +125,10 @@ int busscan(char *line);
 int branchscan(char *line);
 int writebus(struct node *t, FILE *fp);
 int writebranch(struct branch *b, FILE *fp);
-struct node* makenode(void);
-struct branch* makebranch(void);
+struct node *makenode(struct node *);
+struct branch* makebranch(struct branch *);
+void nodecalc(struct node *);
+void branchcalc(struct branch *);
 void closecdf(FILE *fp);
 int readcdf(FILE *fp);
 int writecdf(FILE *fp);

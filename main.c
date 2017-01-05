@@ -82,7 +82,7 @@ int main(int argc, char *argv[]) {
 		}
 	if (argc < 0) {
 		fprintf(stderr, 
-			"用法: %s -gcnly -lim +tol -o outfile infile\n",
+			"用法: %s -sgcnly -lim +tol -o outfile infile\n",
 			progname); 
 		exit(1);
 	}
@@ -117,7 +117,7 @@ void loadflow(FILE *ifp, FILE *ofp) {
 	else
 		inum = pf(lim, tol, "n");
 
-	if (inum > 0 && inum <= lim) {
+	if (inum >= 0 && inum <= lim) {
 		fprintf(stderr, "迭代完成, 共%d次\n", inum);
 	} else if (inum > lim)
 		fprintf(stderr, "计算不收敛\n");

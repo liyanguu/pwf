@@ -33,13 +33,13 @@ Spm makesp(Size nrow, Size ncol) {
 
 	m = spalloc();
 	m->val = spelalloc(nrow);
+	m->nrow = nrow;
+	m->ncol = ncol;
 	for (i=0; i < nrow; i++) {
 		m->val[i].v = .0;
 		m->val[i].colno = i;
 		m->val[i].nextcol = NULL;
 	}
-	m->nrow = nrow;
-	m->ncol = ncol;
 	return m;
 }
 
@@ -68,6 +68,10 @@ struct spel *find(Spm a, Size rowno, Size colno) {
 void add(Spm a, Size rowno, Size colno, Elm v) {
 	struct spel *p;
 
+	if (rowno < 0 || rowno >= a->nrow ||
+	colno < 0 || colno >= a->ncol || 
+	v == 0)
+		return;
 	if ((p = find(a, rowno, colno)) != NULL) {
 		p->v = v;
 		return;
@@ -84,8 +88,10 @@ void add(Spm a, Size rowno, Size colno, Elm v) {
 void delete(Spm a, Size rowno, Size colno) {
 	struct spel *p, *q;
 
-	p = getpos(a, rowno, 0);
-	for ( ; p->nextcol != NULL; p = p->nextcol)
+	if (rowno < 0 || rowno >= a->nrow ||
+	colno < 0 || colno >= a->ncol)
+		return;
+	for (p = &a->val[rowno]; p->nextcol != NULL; p = p->nextcol)
 		if (p->nextcol->colno == colno) {
 			q = p->nextcol;
 			p->nextcol = q->nextcol;
@@ -115,21 +121,18 @@ void deletsp(Spm a) {
 	free(a);
 }
 
-
-Elm buf[100];
-
 void printsp(char *title, Spm a) {
 	struct spel *p;
 	Size i, j;
 
 	printf("%s =\n", title);
 	for (i=0; i < a->nrow; i++) {
-		for (j = 0; j < a->ncol; j++)
-			buf[j] = .0;
-		for (j = 0; (p=getpos(a, i, j)) != NULL; j++)
-			buf[p->colno] = p->v;
-		for (j = 0; j < a->ncol; j++)
-			printf("%10.6f ", buf[j]);
+		for (j=0; j < a->ncol; j++) {
+			if ((p = find(a, i, j)) != NULL)
+				printf("%10.6f ", p->v);
+			else
+				printf("%10.6f ", 0.);
+		}
 		printf("\n");
 	}
 	printf("\n");
