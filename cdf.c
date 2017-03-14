@@ -7,8 +7,8 @@
 #include "pwf.h"
 
 		/* 6 items */
-#define TITLEFMT	" %8c %20c %lf %4c %1s %30c"
-#define TITLEPFMT	" %8s %20s %6.1f %4s %1s %30s\n"
+#define TITLEFMT	" %8c %20c %lf %d %1s %30c"
+#define TITLEPFMT	" %-8s %-20s %6.1f %4d %1s %-30s\n"
 
 		/* 18 terms */
 #define BUSFMT "%d %12c %d %d %d %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %lf %d"
@@ -22,7 +22,8 @@
 
 int section, lineno;
 
-char senddate[10], sendername[22], year[6], season[2], id[32];
+char senddate[9], sendername[21], season[2], id[31];
+int year;
 
 int busno, lfano, lzno, bustype, rcbusno;
 double finalvolt, finalang, loadmw, loadmvar;
@@ -48,9 +49,9 @@ int readcdf(FILE *fp) {
 	while ((p = fgets(line, MAXLINE, fp)) != NULL) {
 		if (trim(p) == 0)
 			continue;
-		if (++lineno == 1) {
-			section = TITLE;
-			if (!titlescan(line)) {
+		++lineno;
+		if (lineno == 1) {
+			if (!titlescan()) {
 				fprintf(stderr, 
 					"readcdf: missing title card\n");
 				return 0;
@@ -64,22 +65,23 @@ int readcdf(FILE *fp) {
 			|| strstr(line, "-9") == line)
 			section = END;
 		else if (strstr(line, "END OF DATA") == line)
-			section = EOF;
-		else
+			section = EOD;
+		else {
 			switch (section) {
 			case BUS:
-				if (!busscan(line)) {
-					fprintf(stderr, "readcdf: can't read bus data\n");
+				if (!busscan())
 					return 0;
-				}
 				break;
 			case BRANCH:
-				if (!branchscan(line)) {
-					fprintf(stderr, "readcdf: can't read branch data\n");
+				if (!branchscan())
 					return 0;
-				}
 				break;
 			}
+		}
+	}
+	if (section != EOD) {
+		fprintf(stderr, "readcdf: missing END OF DATA\n");
+		return 0;
 	}
 	ycalc();
 	return 1;
@@ -92,6 +94,7 @@ int writecdf(FILE *fp) {
 	time_t mytime;
 	struct tm *loctime;
 	char month[5];
+	char yearbuf[5];
 	int m;
 	int i, maxnode, maxbranch;
 
@@ -100,19 +103,25 @@ int writecdf(FILE *fp) {
 	loctime = localtime(&mytime);
 	strftime(senddate, sizeof(senddate), "%D", loctime);
 	strncpy(sendername, "WHU LAB", sizeof(sendername)-1);
-	strftime(year, sizeof(year), "%Y", loctime);
+	strftime(yearbuf, 5, "%Y", loctime);
+	year = atoi(yearbuf);
 	strftime(month, 5, "%m", loctime);
 	strcpy(season, ((m=atoi(month)) <= 8) ? "S": "W");
-	titlewrite(fp);
+	titlewrite();
+	fprintf(fp, "%s", line);
 
 	fprintf(fp, "BUS DATA FOLLOWS %30d ITEMS\n", maxnode);
-	for (i = 0; (t=getnode(i)) != NULL; i++)
-		writebus(t, fp);
+	for (i = 0; (t=getnode(i)) != NULL; i++) {
+		writebus(t);
+		fprintf(fp, "%s", line);
+	}
 	fprintf(fp, "-999\n");
 
 	fprintf(fp, "BRANCH DATA FOLLOWS %30d ITEMS\n", maxbranch);
-	for (i = 0; (b=getbranch(i)) != NULL; i++)
-		writebranch(b, fp);
+	for (i = 0; (b=getbranch(i)) != NULL; i++) {
+		writebranch(b);
+		fprintf(fp, "%s", line);
+	}
 	fprintf(fp, "-999\n");
 
 	fprintf(fp, "END OF DATA\n");
@@ -125,37 +134,30 @@ void closecdf(FILE *fp) {
 	lineno = 0;
 }
 
-int titlescan(char *line) {
-	if (sscanf(line, TITLEFMT,
-			senddate,
-			sendername,
-			&basemva,
-			year,
-			season,
-			id) != 6)
+int titlescan(void) {
+	int n;
+
+	n = sscanf(line, TITLEFMT, senddate, sendername, &basemva,
+			&year, season, id);
+	if (n != 6) {
+		fprintf(stderr, 
+		"error: can't read title in this line:\n%s\n", line);
 		return 0;
-	else {
-		senddate[9] = '\0';
-		sendername[21] = '\0';
-		year[5] = '\0';
+	} else {
+		senddate[8] = '\0';
+		sendername[20] = '\0';
 		season[1] = '\0';
-		id[31] = '\0';
+		id[30] = '\0';
 		return 1;
 	}
 }
 
-int titlewrite(FILE *fp) {
-	fprintf(fp, TITLEPFMT,
-			senddate,
-			sendername,
-			basemva,
-			year, 
-			season, 
-			id);
-	return !ferror(fp);
+int titlewrite(void) {
+	return sprintf(line, TITLEPFMT, senddate, sendername, basemva,
+			year, season, id);
 }
 
-int busscan(char *line) {
+int busscan(void) {
 	struct node *pt;
 
 	if (sscanf(line, BUSFMT, 
@@ -167,18 +169,21 @@ int busscan(char *line) {
 			&basekv, &volt_ctl, 
 			&maxmvar, &minmvar, 
 			&shcon, &shsus, 
-			&rcbusno) != 18) 
+			&rcbusno) != 18) {
+		fprintf(stderr, 
+		"busscan: can't read bus in this line:\n %s\n", line);	
 		return 0;
-	name[13] = '\0';
+	}
+	name[12] = '\0';
 	if ((pt = addnode()) == NULL) {
-		fprintf(stderr, "busscan: can't make node\n");
+		fprintf(stderr, "busscan: can't add node\n");
 		return 0;
 	}
 	makenode(pt);
 	return 1;
 }
 
-int branchscan(char *line) {
+int branchscan(void) {
 	struct branch *pb;
 
 	if (sscanf(line, BRANCHFMT, 
@@ -192,21 +197,22 @@ int branchscan(char *line) {
 	&mintap, &maxtap, 
 	&stepsize, 
 	&minvolt, &maxvolt) != 21) {
-		fprintf(stderr, "branchscan: wrong cdf line:\n\t%s\n",
+		fprintf(stderr, "branchscan: wrong cdf line:\n%s\n",
 			line);
 		return 0;
 	}
 	if ((pb=addbranch()) == NULL) {
-		fprintf(stderr, "branchscan: can't make branch\n");
+		fprintf(stderr, "branchscan: can't add branch\n");
 		return 0;
 	}
 	makebranch(pb);
 	return 1;
 }
 
-int writebus(struct node *t, FILE *fp) {
+int writebus(struct node *t) {
 	double genmw, genmvar;
 	int bustype;
+	int nbytes;
 	
 	bustype = t->type;
 	if (bustype == PQ && t->flag & PVTOPQ)
@@ -215,7 +221,7 @@ int writebus(struct node *t, FILE *fp) {
 	genmvar = t->pw.y * basemva + t->loadmvar;
 	genmw = fixzero(genmw);
 	genmvar = fixzero(genmvar);
-	fprintf(fp, BUSPFMT,
+	nbytes = sprintf(line, BUSPFMT,
 		t->no, t->name, 1, 1, bustype,
 		compscale(t->volt), angle(t->volt) * 180.0 / PI,
 		t->loadmw, t->loadmvar,
@@ -224,20 +230,21 @@ int writebus(struct node *t, FILE *fp) {
 		t->q_max * basemva,
 		t->q_min * basemva,
 		t->adm_sh.x, t->adm_sh.y, 0);
-    	return !ferror(fp);
+	return nbytes;
 }
 
-int writebranch(struct branch *b, FILE *fp) {
+int writebranch(struct branch *b) {
 	struct comp imp;
+	int nbytes;
 
 	imp = comprec(b->adm_line);
-	fprintf(fp, BRANCHPFMT,
+	nbytes = sprintf(line, BRANCHPFMT,
 		b->inode->no, b->jnode->no,
 		1, 1, 1, b->type,
 		imp.x, imp.y, b->linechar, 
 		0, 0, 0, 0, 0, b->k.x, b->k.y,
 		.0, .0, .0, .0, .0);
-	return !ferror(fp);
+	return nbytes;
 }
 
 int trim(char *s) {
@@ -282,7 +289,7 @@ struct branch *makebranch(struct branch *b) {
 	b->jnode = findnode(zbusno);
 	if (b->inode == NULL || b->jnode == NULL) {
 		fprintf(stderr, 
-			"cdf error: line without terminal node, %d\n", lineno);
+		"error: line without terminal nodes:\n%s\n", line);
 		return NULL;
 	}
 	b->type = branchtype;
@@ -293,6 +300,7 @@ struct branch *makebranch(struct branch *b) {
 	return b;
 }
 
+/* calculate the pi-model of transmission lines */
 void branchcalc(struct branch *b) {
 	struct comp adm; 
 	struct comp k1;	/* k one */
@@ -322,6 +330,7 @@ void branchcalc(struct branch *b) {
 	}
 }
 
+/* calculate the self-admitance of the node */
 void nodecalc(struct node *t) {
 	struct nodechain *pc;
 	struct comp adm;

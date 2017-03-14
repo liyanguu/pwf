@@ -1,33 +1,50 @@
+/* pwf.h */
+
 #ifndef H_PWF
 #define H_PWF
 
 #include <stdio.h>
 #include <math.h>
-#include "simplex/mtx.h"
+#include "comp.h"
+#include "mtx.h"
 
-#define PI 3.141592654 
 #define MAXNODE 500
 #define MAXBRANCH 1000
 #define MAXJAC 1000
 #define fixzero(x) (((x) <= 1e-8 && (x) >= -1e-8) ? 0. : (x))
 #define reducerad(x) (((x) >= 2*PI) ? fmod(x, 2*PI) : (x))
+#define loopnode(t) for (t=all_node; t - all_node < nnode; t++)
+#define loopbranch(b) for (b=all_branch; b - all_branch < nbranch; b++)
 
-enum { TITLE, BUS, BRANCH, END };
-enum nodetype { PQ, MVARPQ, PV, SLACK };
-enum branchtype { AC, FT, VT, VTMVAR, VPA }; 
-enum nodeflag { 
+enum cdf_type { TITLE, BUS, BRANCH, END, EOD };
+/* node_type & branch_type: 
+	IEEE Common Format Specification */
+enum node_type { PQ = 0, MVARPQ = 1, PV = 2, SLACK = 3 };
+enum branch_type { AC, FT, VT, VTMVAR, VPA }; 
+enum node_error_flag { 
 	VOLTOVER = 	   01,
 	VOLTUNDER = 	   02,
 	PVTOPQ = 	01000 
 };
-enum { DP, DQ, DV, DA };
+enum index_type { DP, DQ, DV, DA, DPR, DQR, DVS, DVE, DVF, 
+	H, L, M, N , J1, J2, J3 , J4, J5, J6 };
+enum node_info_type { G, B, QGEN, QGENINC, VOLT, VOLTINC, ANG, ANGINC };
+enum order_type { NODELINES, NODENO, NODETYPE };
 
-struct comp {
-	double x, y;
-};
+extern double basemva;
+extern int nnode;	/* number of system nodes */
+extern int npvnode;	/* number of PV nodes */
+extern int npqnode; 	/* number of PQ nodes */
+extern int nbranch;	/* number of system branches */
+extern struct node *all_node[MAXNODE];		/* system nodes buffer */
+extern struct node *pv_node[MAXNODE];		/* PV nodes buffer */
+extern struct node *pq_node[MAXNODE];		/* PQ nodes buffer */
+extern struct node *sl_node;			/* slack node ptr */
+extern struct branch *all_branch[MAXBRANCH];	/* system branches buffer */
 
 struct jacelm {
 	double h, m, n, l;
+	double j1, j2, j3, j4, j5, j6;
 };
 
 struct node {
@@ -76,26 +93,13 @@ struct jacidx {
 	int rtype;
 };
 
-extern double basemva;	/* system base */
-
-struct comp makecomp(double, double);
-struct comp compadd(struct comp, struct comp);
-struct comp compmul(struct comp, struct comp);
-struct comp compmns(struct comp, struct comp);
-struct comp compdiv(struct comp, struct comp);
-struct comp compinv(struct comp);
-struct comp comprec(struct comp);
-struct comp compcnj(struct comp);
-double compscale(struct comp);
-double angle(struct comp);
-
 void ycalc(void);
 void jacalc(struct node *);
 struct comp node_pw(struct node *);
-struct comp node_flow(struct node *pn);
+struct comp line_flow(struct node *pn);
 struct comp b_flow(int, struct branch *);
-int gauss(double *errf, double *errx);
-int newt(double *errf, double *errx);
+int gs(double *errf, double *errx);
+int nr(double *errf, double *errx);
 struct nodechain *chainalloc(void);
 void chainfree(struct nodechain* p);
 struct nodechain *addchain(struct nodechain *pc, struct node *pn, struct branch *pb);
@@ -112,19 +116,22 @@ void printjac(void);
 void printnode(void);
 void printybus(void);
 void printlinef(void);
-int pf(int lim, double tol, char *method);
-void setnodeinfo(int, Elm, char *);
-Elm getnodeinfo(int, char *);
-Elm getsysinfo(struct node*, struct node*, int name);
-void reorder(char *);
+int pf(int lim, double tol, char *method, int ischeck);
+void setnodeinfo(struct node *t, Elm, int name);
+Elm getnodeinfo(struct node *t, int name);
+Elm getsysinfo(struct node *ti, struct node *tj, int name);
+int nodetype(int ntype);
+void reorder(struct node **nodes, int lim, int type);
+void pvpqsl(void);
+void flatstart(void);
 
 int trim(char *s);
-int titlescan(char *line);
-int titlewrite(FILE *fp);
-int busscan(char *line);
-int branchscan(char *line);
-int writebus(struct node *t, FILE *fp);
-int writebranch(struct branch *b, FILE *fp);
+int titlescan(void);
+int titlewrite(void);
+int busscan(void);
+int branchscan(void);
+int writebus(struct node *t);
+int writebranch(struct branch *b);
 struct node *makenode(struct node *);
 struct branch* makebranch(struct branch *);
 void nodecalc(struct node *);

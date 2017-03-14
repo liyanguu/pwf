@@ -1,130 +1,15 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 #include <stdarg.h>
-#include <fenv.h>
 #include "pwf.h"
-#include "simplex/mtx.h"
+#include "mtx.h"
 #include "msg.h"
-
-void print_except(void) {
-	int res = fetestexcept(FE_ALL_EXCEPT);
-
-	if (res & FE_INEXACT)
-		printf("warning: floating point: loss precision\n");
-	if (res & FE_UNDERFLOW)
-		printf("warning: floating point: underflow\n");
-	if (res & FE_OVERFLOW)
-		printf("warning: floating point: overflow\n");
-	if (res & FE_DIVBYZERO)
-		printf("warning: floating point: div by zero\n");
-	if (res & FE_INVALID)
-		printf("warning: floating point: invalid operation\n");
-	feclearexcept(FE_ALL_EXCEPT);
-}
-
-/* makecomp: return a complex number (x, y) */
-struct comp makecomp(double x, double y) {
-	struct comp temp; 
-
-	temp.x = x;
-	temp.y = y;
-	return temp;
-}
-
-/* compadd: add complex a and complex b, return the sum */
-struct comp compadd(struct comp a, struct comp b) {
-	a.x += b.x;
-	a.y += b.y;
-	return a;
-}
-
-/* compmns: minus complex a by complex b, return the result */
-struct comp compmns(struct comp a, struct comp b) {
-	a.x -= b.x;
-	a.y -= b.y;
-	return a;
-}
-
-/* compdiv: divide complex a by complex b, 
-	if b = (0, 0) return (0, 0), else return the result */
-struct comp compdiv(struct comp a, struct comp b) {
-	struct comp temp;
-	double buttom;
-	
-	buttom = b.x * b.x + b.y * b.y;
-	if (buttom == 0)
-		return makecomp(.0, .0);
-	else {
-		temp.x = (a.x * b.x + a.y * b.y) / buttom;
-		temp.y = (a.y * b.x - a.x * b.y) / buttom;
-		return temp;
-	}
-}
-
-/* compmul: multiply complex a and complex b, return the result */
-struct comp compmul(struct comp a, struct comp b) {
-	struct comp temp;
-
-	temp.x = a.x * b.x - a.y * b.y;
-	temp.y = a.x * b.y + a.y * b.x;
-	return temp;
-}
-
-/* compmuls: multiply complex a and scaler s, return the result */
-struct comp compmuls(struct comp a, double s) {
-	a.x *= s;
-	a.y *= s;
-	return a;
-}
-
-/* compinv: return the inverse of complex a = (x, y), i.e. (-x, -y) */
-struct comp compinv(struct comp a) {
-	a.x = - a.x;
-	a.y = - a.y;
-	return a;
-}
-
-/* compcnj: return the conjunction of complex a = (x, y), i.e. (x, -y) */
-struct comp compcnj(struct comp a) {
-	a.y = - a.y;
-	return a;
-}
-
-/* comprec: return the reciprocal of complex a */
-struct comp comprec(struct comp a) {
-	struct comp temp;
-	
-	temp = makecomp(1.0, .0);
-	return compdiv(temp, a);
-}	
-
-/* compscale: return the scale of complex a */
-double compscale(struct comp a) {
-	double res;
-
-	res = (a.x * a.x + a.y * a.y);
-	res = sqrt(res);
-	return res;
-}
-
-/* angle: return the angle of complex a in rad, 
-	from -PI to PI */
-double angle(struct comp a) {
-	if (a.x >= .0)
-		return atan(a.y / a.x);
-	else
-		return atan(a.y / a.x) + ((a.y >= .0) ? PI : -PI); 
-}
-
-/* compdif: return the difference of complex a and complex b,
-	i.e. the scale of a - b */ 
-double compdif(struct comp a, struct comp b) {
-	return compscale(compmns(a, b));
-}
+#include "comp.h"
 
 struct nodechain *chainalloc(void) {
-	return (struct nodechain *) malloc(sizeof(struct nodechain));
+	return malloc(sizeof(struct nodechain));
 }
 
 void chainfree(struct nodechain* p) {
@@ -149,6 +34,7 @@ struct nodechain *addchain(struct nodechain *pc, struct node *pn, struct branch 
 	return p;
 }
 
+/* invchain: inverse a nodechain */
 struct nodechain *invchain(struct nodechain *h) {
 	struct nodechain *prev, *p;
 
@@ -161,26 +47,20 @@ struct nodechain *invchain(struct nodechain *h) {
 	return prev;
 }
 
-
 double basemva;
-
-int nnode;
-int nbranch;	/* system size */
-struct node *all_node[MAXNODE];
-struct branch *all_branch[MAXBRANCH];
-
-#define loopnode(t) for (t=all_node; t - all_node < nnode; t++)
-#define loopbranch(b) for (b=all_branch; b - all_branch < nbranch; b++)
+int nnode;	/* number of system nodes */
+int npvnode;	/* number of PV nodes */
+int npqnode; 	/* number of PQ nodes */
+int nbranch;	/* number of system branches */
+struct node *all_node[MAXNODE];		/* system nodes buffer */
+struct node *pv_node[MAXNODE];		/* PV nodes buffer */
+struct node *pq_node[MAXNODE];		/* PQ nodes buffer */
+struct node *sl_node;			/* slack node ptr */
+struct branch *all_branch[MAXBRANCH];	/* system branches buffer */
 
 void getsize(int *maxnd, int *maxbr) {
 	*maxnd = nnode;
 	*maxbr = nbranch;
-}
-
-struct node **getnodelist(int n) {
-	if (n < 0 || n >= nnode)
-		return NULL;
-	return &all_node[n];
 }
 
 struct node *getnode(int n) {
@@ -255,12 +135,12 @@ int newno(int no) {
 }
 
 void printnode(void) {
-	int i;
 	struct node **pt, *t;
 	struct comp pw;
 
 	printf("%10s %4s %20s%20s%20s\n", 
-		"bus no.", "type", "volt", "P + jQ", "P + jQ(计算值)");
+		"bus no.", "type", 
+		"volt (e + jf)", "power (P + jQ)", "power(计算值)");
 	loopnode(pt) {
 		t = *pt;
 		pw = node_pw(t);
@@ -278,13 +158,12 @@ void printybus(void) {
 	struct node **t;
 	struct nodechain *pc;
 
-	printf("%4s %20s %20s\n", "bus", "self adm", "mutual adm");
-	for (t = all_node ; t < all_node + nnode; t++) {
-		printf("%4d: ( %.4f %.4f)", 
+	loopnode(t) { 
+		printf("%4d: (%.4f %.4f)\n", 
 			(*t)->no, (*t)->adm_self.x, (*t)->adm_self.y);
 		for (pc = (*t)->nbr; pc != NULL; pc = pc ->next)
-			printf(" ( %.4f %.4f)", - pc->b->adm_se.x, - pc->b->adm_se.y);
-		printf("\n");
+			printf("---+%4d: (%.4f %.4f)\n", pc->n->no, 
+				- pc->b->adm_se.x, - pc->b->adm_se.y);
 	}
 }
 
@@ -293,21 +172,19 @@ void printlinef(void) {
 	struct nodechain *pc;
 	struct comp pw;
 
-	printf("%4s %20s %20s\n", "bus", "node flow", "line flow");
-	for (t = all_node ; t < all_node + nnode; t++) {
-		pw = node_flow(*t);
-		printf("%4d: ( %.4f, %.4f)", (*t)->no, pw.x, pw.y);
+	loopnode(t) {
+		pw = line_flow(*t);
+		printf("%4d: ( %.4f, %.4f)\n", (*t)->no, pw.x, pw.y);
 		for (pc = (*t)->nbr; pc != NULL; pc = pc ->next)
-			printf(" ( %.4f %.4f)", pc->pw_f.x, pc->pw_f.y);
-		printf("\n");
+			printf("--->%4d: (%.4f %.4f)\n", pc->n->no, 
+				pc->pw_f.x, pc->pw_f.y);
 	}
 }
 
-/* ycalc: assembly ybus for all nodes */
+/* ycalc: assembly ybus data */
 void ycalc(void) {
 	struct node **t;
 	struct branch **p;
-	struct comp adm;
 
 	loopbranch(p) {
 		(*p)->inode->nbr = addchain((*p)->inode->nbr, 
@@ -335,6 +212,7 @@ struct comp node_pw(struct node *t) {
 	return compcnj(p_temp);		/* P - jQ => P + jQ*/
 }
 
+/* return the nodal active power injection P */
 Elm node_p(struct node *t) {
 	Elm vi = compscale(t->volt);
 	Elm dan;
@@ -351,6 +229,7 @@ Elm node_p(struct node *t) {
 	return powerp * vi;
 }
 
+/* return nodal reactive power injection Q */
 Elm node_q(struct node *t) {
 	Elm vi = compscale(t->volt);
 	Elm dan;
@@ -381,9 +260,9 @@ struct comp node_volt(struct node *t) {
 }
 
 
-/* node_flow: calc each power flow of line terminated at the node pn, 
-	return the total flow */
-struct comp node_flow(struct node *pn) {
+/* line_flow: calc each power flow of line terminated at the node pn, 
+	return the total power flow */
+struct comp line_flow(struct node *pn) {
 	struct comp p_temp = makecomp(.0, .0);
 	struct nodechain *pc;
 
@@ -420,20 +299,19 @@ struct comp b_flow(int dir, struct branch *pb) {
 	return p_temp;
 }
 
-struct node 
-*findnode(int no) {
+struct node *findnode(int no) {
 	static struct node **t = NULL;
 
 	if (t != NULL && (*t)->no == no)
 		return *t;
-	loopnode(t)
+	loopnode(t) {
 		if ((*t)->no == no)
 			return *t;
+	}
 	return NULL;
 }
 
-struct nodechain 
-*findnbr(struct node *base, struct node *aim) {
+struct nodechain *findnbr(struct node *base, struct node *aim) {
 	struct nodechain *ch;
 
 	for (ch = base->nbr; ch != NULL; ch = ch->next)
@@ -443,8 +321,7 @@ struct nodechain
 }
 
 int checknode(void) {
-	struct comp pw, v_temp;
-	double q_gen, ang;
+	double q_gen;
 	Size i;
 	int outcntl = 0;
 	struct node *t;
@@ -452,8 +329,7 @@ int checknode(void) {
 	for (i = 0; (t=getnode(i)) != NULL; i++) {
 		switch (t->type) {
 		case  PV:
-			pw = node_pw(t);
-			q_gen = t->loadmvar/basemva + pw.y;
+			q_gen = t->loadmvar/basemva + t->pw.y;
 			/* out control range */
 			if (q_gen < t->q_min) {
 				q_gen = t->q_min;
@@ -462,7 +338,6 @@ int checknode(void) {
 				q_gen = t->q_max;
 				t->flag |= VOLTUNDER;
 			} else {	/* within limit */
-				t->pw.y = pw.y;
 				break;
 			}
 			t->pw.y = q_gen - t->loadmvar/basemva;
@@ -471,24 +346,19 @@ int checknode(void) {
 			t->flag |= PVTOPQ;
 			outcntl++;
 			break;
-		case SLACK:
-			t->pw = node_pw(t);
-			break;
 		}
 	}
 	return outcntl;
 }
 
-/* gauss: perform one iteration of gauss-seidel power flow, 
+/* gs: perform one cycle of Gauss-Seidel power flow iteration, 
 	set max voltage difference of this iteration, *errf, which
-	is max |V(r+1) - V(r)| , *errx is used to unify with newt,
-	*errx  == *errf.
+	is max |V(r+1) - V(r)| . 
+	*errx is used to unify with newt, *errx  == *errf.
 	if error occured, return 0,  on success, return 1 */
-int gauss(double *errf, double *errx) {
+int gs(double *errf, double *errx) {
 	struct comp v_temp, p_temp;
 	struct node *t;
-	double ang;		/* volt angle of PV node */
-	double q_gen;		/* reactive generation by PV node */
 	int i;
 
 	*errf = .0;
@@ -502,27 +372,8 @@ int gauss(double *errf, double *errx) {
 			break;
 		case PV:
 			p_temp = node_pw(t);	/* calc net power P + jQ */
-			q_gen = t->loadmvar / basemva + p_temp.y;
-			if (q_gen >= t->q_min && q_gen <= t->q_max) {
-				t->pw.y = p_temp.y;
-				v_temp = node_volt(t);	/* calc V */ 
-				ang = angle(v_temp);	/* new angle and volt */
-				v_temp = makecomp(t->volt_ctl * cos(ang),
-					  	  t->volt_ctl * sin(ang));
-			} else {		/* out control range */
-				if (q_gen < t->q_min) {
-					q_gen = t->q_min;
-					t->flag |= VOLTOVER;
-				} else {
-					q_gen = t->q_max;
-					t->flag |= VOLTUNDER;
-				}	
-				t->pw.y = q_gen - t->loadmvar/basemva;
-				t->volt = makecomp(1.0, .0);	/* flat start */
-				t->type = PQ;		/* PV to PQ */
-				t->flag |= PVTOPQ;
-				v_temp = node_volt(t);		/* new volt */
-			}
+			t->pw.y = p_temp.y;
+			v_temp = node_volt(t);
 			break;
 		default:
 			msg(stderr, 
@@ -538,10 +389,17 @@ int gauss(double *errf, double *errx) {
 }
 
 Mtx jac;
-Spm jacs;
-static struct jacidx jacobian_index[MAXJAC];
+static struct jacidx pwindex[MAXJAC];
 
-/* calc Jacobian element node by node */
+void addpwindex(int i, struct node *t, int ltype, int rtype) {
+	if (i < 0 || i >= MAXJAC)
+		return;
+	pwindex[i].n = t;
+	pwindex[i].ltype = ltype;
+	pwindex[i].rtype = rtype;
+}
+
+/* calculate the Jacobian elements related to node t */
 void jacalc(struct node *t) {
 	struct nodechain *ch;
 	struct comp pw, vi, vm, yii, yim, dum;
@@ -569,30 +427,35 @@ void jacalc(struct node *t) {
 	}
 }
 
-/* create the system Jacobian's index, put the mismach function's
-	left side in arg, and set the total error errf */
+/* makeindex - create the system Jacobian's index, 
+ put the mismach function's left side in arg,
+ and set the max error errf 
+ the index has the format:
+
+ left  jacobian  right
+ side  elements  side
+ ___   ___  ___  ___
+ DP    H    M    DA
+ DQ    N    L    DV
+*/
 int makeindex(Elm *errf, Elm *arg) {
 	struct node *t;
-	struct comp pw;
 	struct jacidx *jacp;
 	Size i, j;
 
-	jacp = jacobian_index;
+	jacp = pwindex;
 	j = 0;
+	*errf = 0;
 	for (i=0; (t=getnode(i)) != NULL; ++i) {
 		if (t->type == SLACK)
 			continue;	/* skip slack bus */
 		jacalc(t);
-		/* PQ and PV bus */
-		jacp[j].ltype = DP;
-		jacp[j].rtype = DA;
-		jacp[j].n = t;
+		/* PQ and PV buses have DP */
+		addpwindex(j, t, DP, DA);
 		arg[j] = t->pw.x - t->pw_act.x;
 		j++;
-		if (t->type == PQ) { /* PQ node has 2 indies, ie. DP, DQ */
-			jacp[j].ltype = DQ;
-			jacp[j].rtype = DV;
-			jacp[j].n = t;
+		if (t->type == PQ) { /* PQ buses have 2 indices: DP, DQ */
+			addpwindex(j, t, DQ, DV);
 			arg[j] = t->pw.y - t->pw_act.y;
 			j++;
 		}
@@ -605,81 +468,190 @@ int makeindex(Elm *errf, Elm *arg) {
 	return j; 
 }
 
-void updateindex(Elm *arg, Size dim, Elm *errx) {
-	Size i;
-	struct jacidx *jacp = jacobian_index;
-	struct node *t;
-	Elm an, vl;
+void recjacalc(struct node *t) {
+	Elm a, b, c, d;
+	struct comp yik, vk, yii, vi;
+	struct nodechain *ch;
 
-	norm(arg, dim, errx);
-	for (i=0; i < dim; i++) {
-		t = jacp[i].n;
-		an = angle(t->volt);
-		vl = compscale(t->volt);
-		switch(jacp[i].rtype) {
-		case DA:
-			an = an + arg[i];
-			msg(stderr, "pwf: updateindex: da is %g\n", arg[i]);
+	t->pw_act = node_pw(t);
+	yii = t->adm_self;
+	vi = t->volt;
+	a = b = c = d = 0;
+	for (ch=t->nbr; ch != NULL; ch=ch->next) {
+		yik = compinv(ch->b->adm_se);
+		vk = t->volt;
+		a += yik.x * vk.x;
+		b += yik.y * vk.y;
+		c += yik.x * vk.y;
+		d += yik.y * vk.x;
+		ch->jelm.j1 = -(yik.x * vi.x + yik.y * vi.y);
+		ch->jelm.j2 = yik.y * vi.x - yik.x * vi.y;
+		switch (t->type) {
+		case PQ:
+			ch->jelm.j3 = - ch->jelm.j2;
+			ch->jelm.j4 = - ch->jelm.j1;
 			break;
-		case DV:
-			vl += arg[i] * vl;
-			msg(stderr, "pwf: updateindex: dv is %g\n", arg[i]);
+		case PV:
+			ch->jelm.j5 = ch->jelm.j6 = 0;
+			break;
+		default:
 			break;
 		}
-		t->volt = makecomp(vl*cos(an), vl*sin(an));
+	}
+	t->jelm.j1 = -(a - b + 2 * yii.x * vi.x);
+	t->jelm.j2 = -(c + d) - 2 * yii.x * vi.y;
+	switch(t->type) {
+	case PQ:
+		t->jelm.j3 =   c + d  + 2 * yii.y * vi.x;
+		t->jelm.j4 = -(a - b) + 2 * yii.y * vi.y;
+		break;
+	case PV:
+		t->jelm.j5 = -2 * vi.x;
+		t->jelm.j6 = -2 * vi.y;
+		break;
+	default:
+		break;
 	}
 }
 
-int jactype(Size i, Size j) {
-	switch (jacobian_index[i].ltype) {
+Size recmakeindex(Elm *errf, Elm *arg) {
+	struct node **t;
+	struct comp dpw, volt;
+	Elm vs;
+	Size j;
+
+	j = 0;
+	loopnode(t) {
+		if ((*t)->type == SLACK)
+			continue;
+		recjacalc(*t);
+		dpw = compmns((*t)->pw, (*t)->pw_act);
+		switch((*t)->type) {
+		case PQ:
+			addpwindex(j, *t, DPR, DVF);
+			arg[j] = dpw.x;
+			msg(stderr, "pwf: recmakeindex: %d, dP = %f\n", 
+				(*t)->no, arg[j]);
+			j++;
+			addpwindex(j, *t, DQR, DVE);
+			arg[j] = dpw.y;
+			msg(stderr, "pwf: recmakeindex: %d, dQ = %f\n", 
+				(*t)->no, arg[j]);
+			j++;
+			break;
+		case PV:
+			addpwindex(j, *t, DPR, DVF);
+			arg[j] = dpw.x;
+			msg(stderr, "pwf: recmakeindex: %d, dP = %f\n", 
+				(*t)->no, arg[j]);
+			j++;
+			addpwindex(j, *t, DVS, DVE);
+			vs = (*t)->volt_ctl;
+			volt = (*t)->volt;
+			arg[j] = vs * vs 
+				- volt.x * volt.x + volt.y * volt.y;
+			msg(stderr, "pwf: recmakeindex: %d, dV^2 = %f\n", 
+				(*t)->no, arg[j]);
+			j++;
+			break;
+		default:
+			break;
+		}
+	}
+	msg(stderr, "pwf: recmakeindex: %4d\n", j);
+	norm(arg, j, errf);
+	return j;	
+}
+
+/* undateindex - update nodal voltages according to the index */
+void updateindex(Elm *arg, Size dim, Elm *errx) {
+	Size i;
+	struct node *t;
+	Elm da, dv, ang;
+	int rtype;
+
+	norm(arg, dim, errx);
+	for (i=0; i < dim; i++) {
+		t = pwindex[i].n;
+		rtype = pwindex[i].rtype;
+		switch(rtype) {
+		case DA:
+			da = arg[i];
+			t->volt = compmul(t->volt, makecomp(cos(da), sin(da)));
+			msg(stderr, "pwf: updateindex: da is %g\n", arg[i]);
+			break;
+		case DV:
+			dv = arg[i] + compscale(t->volt);
+			ang = angle(t->volt);
+			t->volt = makecomp(dv*cos(ang), dv*sin(ang));
+			msg(stderr, "pwf: updateindex: dv is %g\n", arg[i]);
+			break;
+		case DVE:
+			t->volt.x -= arg[i];
+			msg(stderr, "pwf: updateindex: de is %g\n", arg[i]);
+			break;
+		case DVF:
+			t->volt.y -= arg[i];
+			msg(stderr, "pwf: updateindex: df is %g\n", arg[i]);
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+int jactype(int ltype, int rtype) {
+	switch (ltype) {
 	case DP: 
-		if (jacobian_index[j].rtype == DA)
-			return 'h';
+		if (rtype == DA)
+			return H;
 		else
-			return 'm';
+			return M;
 		break;
 	case DQ:
-		if (jacobian_index[j].rtype == DA)
-			return 'n';
+		if (rtype == DA)
+			return N;
 		else
-			return 'l';
+			return L;
+		break;
+	case DPR:
+		if (rtype == DVE)
+			return J1;
+		else
+			return J2;
+		break;
+	case DQR:
+		if (rtype == DVE)
+			return J3;
+		else
+			return J4;
+		break;
+	case DVS:
+		if (rtype == DVE)
+			return J5;
+		else
+			return J6;
 		break;
 	default:
-		msg(stderr,"pwf: getjac: wrong type jacobian_index[%d]\n",i);
+		msg(stderr,"pwf: getjac: wrong type in pwindex\n");
 		return -1;
 	}
 }
 
 void makejac(int dim) {
 	Size i, j;
-	struct node *ti, *tj;
+	struct jacidx *pi, *pj;
 
 	if (jac != NULL)
 		mtxfree(jac);
 	jac = mtxalloc(dim, dim);
 
 	for (i = 0; i < dim; i++) {
-		ti = jacobian_index[i].n;
+		pi = &pwindex[i];
 		for (j = 0; j < dim; j++) {
-			tj = jacobian_index[j].n;
-			jac->val[i][j]=getsysinfo(ti, tj, jactype(i, j));
-		}
-	}
-}
-
-void makejacs(int dim) {
-	Size i, j;
-	struct node *ti, *tj;
-
-	if (jacs != NULL)
-		deletsp(jacs);
-	jacs = makesp(dim, dim);
-
-	for (i = 0; i < dim; i++) {
-		ti = jacobian_index[i].n;
-		for (j = 0; j < dim; j++) {
-			tj = jacobian_index[j].n;
-			add(jacs, i, j, getsysinfo(ti, tj, jactype(i, j)));
+			pj = &pwindex[j];
+			jac->val[i][j]=getsysinfo(pi->n, pj->n,
+				jactype(pi->ltype, pj->rtype));
 		}
 	}
 }
@@ -687,139 +659,143 @@ void makejacs(int dim) {
 void printjac(void) {
 	if (jac != NULL)
 		mtxprint("System Jacobian", jac);
-	if (jacs != NULL)
-		printsp("Jacobian Sparse", jacs);
 }
 
-/* update: update node voltage and angle according to
-	mismatch function root arg */
-void update(Elm *arg, Size dim, Elm *errx) {
-	int i, j;
+/* update nodal power */
+void updatenp(void) {
+	int i;
 	struct node *t;
-	double vl, an, dan, dvl;
 	struct comp pw;
 
-	norm(arg, dim, errx);
-	j = 0;
 	for (i = 0; (t=getnode(i)) != NULL; ++i)
 		switch (t->type) {
-		case PQ:
-			dan = arg[j++];
-			dvl = arg[j++];
-			an = angle(t->volt);
-			an += dan;
-			vl = compscale(t->volt);
-			vl += vl * dvl;
-			t->volt = makecomp(vl*cos(an), vl*sin(an));
-			msg(stderr, "pwf: update: modify %f, %f of %d\n",
-				dan, dvl, t->no);
-			break;
 		case PV:
-			dan = arg[j++];
-			an = angle(t->volt);
-			an += dan;
-			vl = compscale(t->volt);
-			t->volt = makecomp(vl*cos(an), vl*sin(an));
 			pw = node_pw(t);
 			t->pw.y = pw.y;
-			msg(stderr, "pwf: update: modify %f of %d\n",
-				dan, t->no);
+			msg(stderr, "pwf: update: Qgen of %d is %g\n",
+				t->no, pw.y);
 			break;
 		case SLACK:
 			t->pw = node_pw(t);
 			break;
+		default:
+			break;
 		}
 }
 
-static double df[MAXJAC];	/* roots of mismatch functions */
-static Size indx[MAXJAC];	/* swap index of ludcmp & lubksb */
+static double df[MAXJAC];  /* mismatch functions' left and right terms */
+static int indx[MAXJAC];  /* swap index of ludcmp & lubksb */
+static int nrtype;		/* polar form or rectangular form */
+enum { POLAR, RECT };
 
-int newt(double *errf, double *errx) {
+/* nr: Newton-Raphson power flow
+	errf - max of dP, dQ
+	errx - max of dA, dV or de , df
+   return values:
+	1 - success
+*/
+int nr(double *errf, double *errx) {
 	Size d;
 	Elm det;
+	Mtx m;
 
-	d = makeindex(errf, df);
+	d = (nrtype == POLAR)
+		? makeindex(errf, df) : recmakeindex(errf, df);
 	makejac(d);
-	ludcmp(jac, indx, &det);
-	lubksb(jac, indx, df);
+	m = mtxdup(jac);
+	ludcmp(m, indx, &det);
+	lubksb(m, indx, df);
+	mtxfree(m);
 	updateindex(df, d, errx);
-	return checknode();
+	updatenp();
+	return 1;
 }
 
-int newts(double *errf, double *errx) {
-	Size d;
-
-	d = makeindex(errf, df);
-	makejacs(d);
-	gauss_jordan(jacs, df);
-	updateindex(df, d, errx);
-	return checknode();
-}
-
-int pf(int lim, double tol, char *method) {
+/* pf: power flow calculations
+	lim - interation limit
+	tol - tolerance
+	method - 
+		'n' - polar Newton-Raphson
+		'r' - rectangular Newton-Raphson
+		'g' - Gauss-Seidal
+	ischeck -
+		1 - regulated load flow
+		0 - unregulated load flow
+   return values:
+	<= lim - convergence
+	>  lim - none convergence
+	-1 - errors
+*/
+int pf(int lim, double tol, char *method, int ischeck) {
 	int i;
 	double errf, errx;
 	int (*powerf)(double *, double *);
 	
 	switch(*method) {
 	case 'n':
-		powerf = newt;
+		powerf = nr;
+		nrtype = POLAR;
 		break;
-	case 's':
-		powerf = newts;
+	case 'r':
+		powerf = nr;
+		nrtype = RECT;
 		break;
 	case 'g':
-		powerf = gauss;
+		powerf = gs;
 		break;
 	default:
 		return -1;
 	}
 
-	reorder("nconnect");
+	reorder(all_node, nnode, NODELINES);
 	for (i = 1; i <= lim; i++) {
-		if (powerf(&errf, &errx) > 0)
+		powerf(&errf, &errx);
+		if (ischeck && checknode() > 0)
 			continue;
 		if (errf <= tol)
 			break;
 	}
-	reorder("busno");
+	reorder(all_node, nnode, NODENO);
 	return i;
 }
 
-int getinfo(Elm *v, char *name) {
-	struct node **t;
-	Elm *pv = v;
-
-	if (strcmp(name, "volt") == 0)
-		loopnode(t)
-			*v++ = compscale((*t)->volt);
-	else
-		return -1;
-	return v - pv;
-}
-
-Elm getnodeinfo(int n, char *name) {
-	struct node *t;
-
-	if ((t=getnode(n)) != NULL) {
-		if (strcmp(name, "volt")== 0)
+Elm getnodeinfo(struct node *t, int name) {
+	switch(name) {
+		case VOLT:
 			return compscale(t->volt);
-		else if (strcmp(name, "qgen")==0)
+			break;
+		case ANG:
+			return angle(t->volt);
+			break;
+		case QGEN:
 			return t->pw.y + t->loadmvar/basemva;
-	} else
-		return .0;
+			break;
+		default:
+			return 0;
+	}
+	return 0;
 }
 
-void setnodeinfo(int n, Elm result, char *name) {
-	struct node *t;
-	Elm an;
+void setnodeinfo(struct node *t, Elm result, int name) {
+	Elm an, volt;
 
-	if ((t=getnode(n)) != NULL) {
-		if (strcmp(name, "volt")==0) {
-			an = angle(t->volt);
-			t->volt = makecomp(result*cos(an), result*sin(an));
-		} else if (strcmp(name, "qgen")==0)
-			t->pw.y = result - t->loadmvar/basemva;	
+	switch (name) {
+	case VOLT:
+		an = angle(t->volt);
+		t->volt = makecomp(result*cos(an), result*sin(an));
+		break;
+	case ANG:
+		volt = compscale(t->volt);
+		t->volt = makecomp(volt*cos(result), volt*sin(result));
+		break;
+	case QGEN:
+		t->pw.y = result - t->loadmvar/basemva;	
+		break;
+	case QGENINC:
+		t->pw.y += result;
+		break;
+	default:
+		break;
 	}
 }
 
@@ -839,22 +815,40 @@ Elm getsysinfo(struct node *ti, struct node *tj, int name) {
 		return 0;
 
 	switch (name) {
-	case 'h':
+	case H:
 		sen = quad.h;
 		break;
-	case 'l':
+	case L:
 		sen = quad.l;
 		break;
-	case 'm':
+	case M:
 		sen = quad.m;
 		break;
-	case 'n':
+	case N:
 		sen = quad.n;
 		break;
-	case 'g':
+	case J1:
+		sen = quad.j1;
+		break;
+	case J2:
+		sen = quad.j2;
+		break;
+	case J3:
+		sen = quad.j3;
+		break;
+	case J4:
+		sen = quad.j4;
+		break;
+	case J5:
+		sen = quad.j5;
+		break;
+	case J6:
+		sen = quad.j6;
+		break;
+	case G:
 		sen = cval.x;
 		break;
-	case 'b':
+	case B:
 		sen = cval.y;
 		break;
 	default:
@@ -864,19 +858,108 @@ Elm getsysinfo(struct node *ti, struct node *tj, int name) {
 	return sen;
 }
 
-int nodecmp(const void *t1, const void *t2) {
+int nodecmp1(const void *t1, const void *t2) {
 	return (*(struct node * const *)t1)->nconnect -
 		(*(struct node * const *)t2)->nconnect;
 }
 
-int nodenocmp(const void *t1, const void *t2) {
+/* nodecmp2 - compare the nodes according to node no. */
+int nodecmp2(const void *t1, const void *t2) {
 	return (*(struct node * const *)t1)->no -
 		(*(struct node * const *)t2)->no;
 }
 
-void reorder(char *name) {
-	if (strcmp(name, "busno") == 0)
-		qsort(all_node, nnode, sizeof(all_node[0]), nodenocmp);
-	else if (strcmp(name, "nconnect") == 0)
-		qsort(all_node, nnode, sizeof(all_node[0]), nodecmp);
+/* nodecmp3 - compare the nodes according to node types */
+int nodecmp3(const void *t1, const void *t2) {
+	int t1type, t2type;
+
+	t1type = (*(struct node * const *)t1)->type;
+	t2type = (*(struct node * const *)t2)->type;
+	return nodetype(t1type) - nodetype(t2type);
+}
+
+int nodetype(int ntype) {
+	if (ntype == PV) 
+		return 0;
+	else if (ntype == PQ)
+		return 1;
+	else if (ntype == SLACK)
+		return 2;
+	else
+		return 3;
+}
+
+/* reorder - sort the node list according to type
+ nodes:
+	all_node or pv_node or pq_node
+ type:
+	NODELINES  based on connection lines of a node
+	NODENO	   based on node no
+*/
+void reorder(struct node **nodes, int lim, int type) {
+	int (*cmpf) (const void *, const void *);
+
+	switch (type) {
+	case NODELINES:
+		cmpf = nodecmp1;
+		break;
+	case NODENO:
+		cmpf = nodecmp2;
+		break;
+	case NODETYPE:
+		cmpf = nodecmp3;
+		break;
+	default:
+		msg(stderr, "wrong order type\n");
+		return;
+	}
+	qsort(nodes, lim, sizeof(nodes[0]), cmpf);
+}
+
+void pvpqsl(void) {
+	int i;
+	struct node *t;
+
+	npvnode = npqnode = 0;
+	for (i = 0; (t=getnode(i)) != NULL; i++)
+		switch(t->type) {
+		case SLACK:
+			sl_node = t;
+			break;
+		case PV:
+			pv_node[npvnode++] = t;
+			break;
+		case PQ:
+			pq_node[npqnode++] = t;
+			break;
+		default:
+			break;
+		}
+	msg(stderr, "pwf: reorder: pv = %d\n", npvnode);
+	msg(stderr, "pwf: reorder: pq = %d\n", npqnode);
+	msg(stderr, "pwf: reorder: total = %d\n", nnode);
+}
+
+/* flat start of power flow with one cycle of gs iteration */
+void flatstart(void) {
+	struct node **t;
+	double ef, ex, vctl; 
+	struct comp volt;
+
+	pvpqsl();
+	volt = sl_node->volt;
+	loopnode(t) {
+		switch((*t)->type) {
+		case PQ:
+			(*t)->volt = volt; /* set to Slack node's voltage */
+			break;
+		case PV:
+			vctl = (*t)->volt_ctl;
+			setnodeinfo(*t, vctl, VOLT);
+			break;
+		default:
+			break;
+		}
+	}
+	gs(&ef, &ex);
 }
