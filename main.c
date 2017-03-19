@@ -26,83 +26,36 @@ struct {
 } flag;
 
 void loadflow(FILE *ifp, FILE *ofp);
-FILE *getfile(int argc, char **argv);
+int getopt(char *);
 
 /* Gauss-Seidel / Newton power flow in IEEE common data format */
 int main(int argc, char *argv[]) {
 	char *progname = argv[0]; 
-	char *p;
 	int c;
-	int stoploop = 0;
 
 	ofp = stdout;
 	lim = DEFLIM;
 	tol = DEFTOL;
 	while (--argc > 0) {
-		if ((c = (*++argv)[0]) != '-' && c != '+')
+		++argv;
+		if ((c = (*argv)[0]) != '-' && c != '+')
 			break;
 		if (c == '+') {
 			if (sscanf(&argv[0][1], "%lf", &tol) != 1)
 				argc = 0;
 			else if (tol < 0)
 				tol = DEFTOL;
-		} else if (sscanf(&argv[0][1], "%d", &lim) == 1) {
-			if (lim < 1)
-				lim = DEFLIM;
-		} else {
-			for (p = ++argv[0]; *p; ++p) {
-				switch(*p) {
-				case 't':
-					print_test_msg = 1;
-					if (!strcmp(++p, "pwf"))
-						including("pwf");
-					else if (!strcmp(p, "mtx"))
-						including("mtx");
-					stoploop = 1;
-					break;
-				case 's':
-					flag.use_sparse = 1;
-					break;
-				case 'g':
-					flag.use_gauss = 1;
-					break;
-				case 'c':
-					flag.print_cdf = 1;
-					break;
-				case 'y':
-					flag.print_ybus = 1;
-					break;
-				case 'l':
-					flag.print_lineflow = 1;
-					break;
-				case 'n':
-					flag.print_node = 1;
-					break;
-				case 'j':
-					flag.print_jac = 1;
-					break;
-				case 'a':
-					flag.adjusted = 1;
-					break;
-				case 'r':
-					flag.rect = 1;
-					break;
-				case 'o':
-					ofp = getfile(--argc, ++argv);
-					break;
-				default:
-					fprintf(stderr, ERR_WRONG_OPT, *p);
+		} else if (c == '-') {
+			if (sscanf(&argv[0][1], "%d", &lim) != 1) {
+				if (getopt(*argv))
 					argc = 0;
-					stoploop = 1;
-				}
-				if (stoploop)
-					break;
-			}
+			} else if (lim < 1)
+				lim = DEFLIM;
 		}
 	}
 	if (argc < 0) {
 		fprintf(stderr, 
-			"用法: %s -sgcnly -lim +tol -o outfile infile\n",
+			"用法: %s [-gcnly] [-lim] [+tol] [-ooutfile] infile\n",
 			progname); 
 		exit(1);
 	}
@@ -113,27 +66,13 @@ int main(int argc, char *argv[]) {
 			if ((ifp = fopen(*argv, "r")) == NULL) {
 				fprintf(stderr, 
 					"error: can't open %s\n", *argv);
-				exit(2);
+				exit(1);
 			}
-			argv++;
 			loadflow(ifp, ofp);
 			closecdf(ifp);
+			argv++;
 		}
 	exit(0);
-}
-
-
-FILE *getfile(int argc, char **argv) {
-	FILE *ofp;
-
-	if (argc <= 0) {
-		fprintf(stderr, ERR_NO_INPUT_FILE_NAME);
-		exit(3);
-	} else if ((ofp = fopen(*argv, "w"))==NULL) {
-		fprintf(stderr, ERR_CANT_OPEN_FILE, *argv);
-		exit(3);
-	}
-	return ofp;
 }
 
 void loadflow(FILE *ifp, FILE *ofp) {
@@ -177,4 +116,57 @@ void loadflow(FILE *ifp, FILE *ofp) {
 	if (flag.print_jac == 1)
 		printjac();
 	clear();
+}
+
+
+int getopt(char *p) {
+	while (*++p) {
+		switch(*p) {
+		case 't':
+			print_test_msg = 1;
+			if (!strcmp(++p, "pwf"))
+				including("pwf");
+			else if (!strcmp(p, "mtx"))
+				including("mtx");
+			else
+				return 1;	/* unknown name */
+			return 0;
+		case 's':
+			flag.use_sparse = 1;
+			break;
+		case 'g':
+			flag.use_gauss = 1;
+			break;
+		case 'c':
+			flag.print_cdf = 1;
+			break;
+		case 'y':
+			flag.print_ybus = 1;
+			break;
+		case 'l':
+			flag.print_lineflow = 1;
+			break;
+		case 'n':
+			flag.print_node = 1;
+			break;
+		case 'j':
+			flag.print_jac = 1;
+			break;
+		case 'a':
+			flag.adjusted = 1;
+			break;
+		case 'r':
+			flag.rect = 1;
+			break;
+		case 'o':
+			if ((ofp = fopen(++p, "w")) == NULL)
+				return 1;
+			else
+				return 0;
+		default:
+			fprintf(stderr, ERR_WRONG_OPT, *p);
+			return 1;
+		}
+	}
+	return 0;	/* success */
 }

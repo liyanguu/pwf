@@ -5,13 +5,17 @@
 #define swapt(t, a, b) {t _z = a; a = b; b = _z;}
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define trymtxalloc(m, nrow, ncol) ((m==NULL) ? mtxalloc(nrow, ncol) : m)
+typedef enum mtype_t { ROW_MAJOR, COL_MAJOR } mtype;
 
 typedef int Size;
 typedef double Elm; 
 typedef Elm** Rv;
 typedef struct mtx {
-	Rv val;
-	Size nrow, ncol;
+	Rv val;		/* ptrs to matrix elements' value */
+	Size nrow;	/* # rows */
+	Size ncol;	/* # cols */
+	Size *ipiv;	/* index of pivot */
+	mtype type;	/* matrix storage order */
 } *Mtx;
 
 Elm getel(Mtx, Size i, Size j);

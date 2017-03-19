@@ -22,8 +22,10 @@ enum cdf_type { TITLE, BUS, BRANCH, END, EOD };
 enum node_type { PQ = 0, MVARPQ = 1, PV = 2, SLACK = 3 };
 enum branch_type { AC, FT, VT, VTMVAR, VPA }; 
 enum node_error_flag { 
-	VOLTOVER = 	   01,
-	VOLTUNDER = 	   02,
+	OVER_VOLTLIM  =	   01,
+	UNDER_VOLTLIM =	   02,
+	MIN_QGEN =	010,
+	MAX_QGEN =	020,
 	PVTOPQ = 	01000 
 };
 enum index_type { DP, DQ, DV, DA, DPR, DQR, DVS, DVE, DVF, 
@@ -55,14 +57,17 @@ struct node {
 	char *name;
 	double basekv;
 	double loadmw, loadmvar;
-	struct comp pw;		/* net power injection p.u. == Pg-Pd + j(Qg-Qd)*/
-	struct comp pw_act;	/* actual calculated power */
+	struct comp pw;		/* net power injection p.u.=Pg-Pd + j(Qg-Qd)*/
+	struct comp pw_act;	/* actual calculated power p.u. */
 	struct comp volt;	/* initial nodal voltage p.u. */
 	struct comp adm_sh;	/* shunt G, B in p.u. */ 
 	struct nodechain *nbr;
 	struct comp adm_self;	/* nodal self amditance */ 
-	double q_min, q_max;	/* reactive generation limits for PV node p.u. */ 
+	double q_max, q_min;	/* reactive generation limits for PV node p.u.*/ 
+	double vg_max, vg_min;	/* voltage limits for PV nodes p.u. */
 	double volt_ctl;	/* control voltage for PV node p.u. */
+	double vt_max, vt_min;	/* voltage limits for PQ node p.u. */
+	double var_max, var_min; /* var limits for PQ nodes p.u. */
 	struct jacelm jelm;		/* Jacobian element */
 };
 

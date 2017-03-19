@@ -146,7 +146,7 @@ void printnode(void) {
 		pw = node_pw(t);
 		printf("%s%9d %4d %10.4f%10.4f" "%10.4f%10.4f"
 			"%10.4f%10.4f\n", 
-			(t->flag & (VOLTOVER | VOLTUNDER)) ? "*" : " ",
+			(t->flag & (OVER_VOLTLIM|UNDER_VOLTLIM)) ? "*" : " ",
 			t->no, 
 			t->type,
 			compscale(t->volt), angle(t->volt) * 180 / 3.14159, 
@@ -322,29 +322,39 @@ struct nodechain *findnbr(struct node *base, struct node *aim) {
 
 int checknode(void) {
 	double q_gen;
+	double vt;
 	Size i;
 	int outcntl = 0;
 	struct node *t;
 
 	for (i = 0; (t=getnode(i)) != NULL; i++) {
 		switch (t->type) {
-		case  PV:
+		case PV:
 			q_gen = t->loadmvar/basemva + t->pw.y;
 			/* out control range */
 			if (q_gen < t->q_min) {
 				q_gen = t->q_min;
-				t->flag |= VOLTOVER;
+				t->flag |= MIN_QGEN;
 			} else if (q_gen > t->q_max) {
 				q_gen = t->q_max;
-				t->flag |= VOLTUNDER;
+				t->flag |= MAX_QGEN;
 			} else {	/* within limit */
-				break;
+				continue;
 			}
-			t->pw.y = q_gen - t->loadmvar/basemva;
+			t->flag |= PVTOPQ; 	/* PV to PQ */
+			t->type = PQ;
+			t->pw.y = q_gen - t->loadmvar/basemva; /* fixed Q */
 			t->volt = makecomp(1.0, .0);	/* flat start */
-			t->type = PQ;		/* PV to PQ */
-			t->flag |= PVTOPQ;
+			t->vt_min = .95;
+			t->vt_max = 1.1;
 			outcntl++;
+			break;
+		case PQ:
+			vt = compscale(t->volt);
+			if (vt > t->vt_max)
+				t->flag |= OVER_VOLTLIM;
+			else if (vt < t->vt_min)
+				t->flag |= UNDER_VOLTLIM;
 			break;
 		}
 	}
@@ -429,14 +439,15 @@ void jacalc(struct node *t) {
 
 /* makeindex - create the system Jacobian's index, 
  put the mismach function's left side in arg,
- and set the max error errf 
+ and set the max error errf.
  the index has the format:
 
  left  jacobian  right
  side  elements  side
  ___   ___  ___  ___
  DP    H    M    DA
- DQ    N    L    DV
+ DQ    N    L    DV 
+ ___   ___  ___  ___
 */
 int makeindex(Elm *errf, Elm *arg) {
 	struct node *t;
@@ -450,11 +461,12 @@ int makeindex(Elm *errf, Elm *arg) {
 		if (t->type == SLACK)
 			continue;	/* skip slack bus */
 		jacalc(t);
-		/* PQ and PV buses have DP */
+		/* both PQ and PV buses have DP */
 		addpwindex(j, t, DP, DA);
 		arg[j] = t->pw.x - t->pw_act.x;
 		j++;
-		if (t->type == PQ) { /* PQ buses have 2 indices: DP, DQ */
+		if (t->type == PQ || t->flag & PVTOPQ) { 
+		/* PQ or PV-to-PQ buses have 2 indices: DP, DQ */
 			addpwindex(j, t, DQ, DV);
 			arg[j] = t->pw.y - t->pw_act.y;
 			j++;

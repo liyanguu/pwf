@@ -1,3 +1,7 @@
+/* change log:
+	2017-3-19	modify bus section data, add ctlmin,max
+*/
+
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -28,7 +32,9 @@ int year;
 int busno, lfano, lzno, bustype, rcbusno;
 double finalvolt, finalang, loadmw, loadmvar;
 double genmw, genmvar, basekv, volt_ctl;
-double maxmvar, minmvar, shcon, shsus;
+double opmax, opmin; 	/* operation parameters' limits */
+double shcon, shsus;
+double ctlmax, ctlmin;	/* control parameters' limits */
 char name[13];	/* a bus name field is 6-17, 12 chars */
 
 int tbusno, zbusno;
@@ -47,7 +53,7 @@ int readcdf(FILE *fp) {
 	int trim(char *);
 
 	while ((p = fgets(line, MAXLINE, fp)) != NULL) {
-		if (trim(p) == 0)
+		if (p[0] == '#' || trim(p) == 0)
 			continue;
 		++lineno;
 		if (lineno == 1) {
@@ -167,7 +173,7 @@ int busscan(void) {
 			&loadmw, &loadmvar,
 			&genmw, &genmvar, 
 			&basekv, &volt_ctl, 
-			&maxmvar, &minmvar, 
+			&opmax, &opmin, 
 			&shcon, &shsus, 
 			&rcbusno) != 18) {
 		fprintf(stderr, 
@@ -211,24 +217,29 @@ int branchscan(void) {
 
 int writebus(struct node *t) {
 	double genmw, genmvar;
+	double pmax, pmin;
 	int bustype;
 	int nbytes;
 	
 	bustype = t->type;
 	if (bustype == PQ && t->flag & PVTOPQ)
 		bustype = PV;
-	genmw = t->pw.x * basemva + t->loadmw;
-	genmvar = t->pw.y * basemva + t->loadmvar;
-	genmw = fixzero(genmw);
-	genmvar = fixzero(genmvar);
+	if (bustype == PV) {
+		pmax = t->q_max * basemva;
+		pmin = t->q_min * basemva;
+	} else if (bustype == PQ) {
+		pmax = t->vt_max;
+		pmin = t->vt_min;
+	}
+	genmw = fixzero(t->pw.x * basemva + t->loadmw);
+	genmvar = fixzero(t->pw.y * basemva + t->loadmvar);
 	nbytes = sprintf(line, BUSPFMT,
 		t->no, t->name, 1, 1, bustype,
 		compscale(t->volt), angle(t->volt) * 180.0 / PI,
 		t->loadmw, t->loadmvar,
 		genmw, genmvar,
 		t->basekv, t->volt_ctl,
-		t->q_max * basemva,
-		t->q_min * basemva,
+		pmax, pmin,
 		t->adm_sh.x, t->adm_sh.y, 0);
 	return nbytes;
 }
@@ -269,8 +280,17 @@ struct node *makenode(struct node *t) {
 	t->nbr = NULL;
 	t->loadmw = loadmw;
 	t->loadmvar = loadmvar;
-	t->q_min = minmvar / basemva;
-	t->q_max = maxmvar / basemva;
+	if (t->type == PV) {
+	/* for PV nodes, opmin = min MVAr, opmax = max mvar */
+		t->q_min = opmin / basemva;
+		t->q_max = opmax / basemva;
+	} else if (t->type == PQ) {
+	/* for PQ nodes, minop = min voltage, maxop = max volt limit */
+		t->vt_min = opmin;
+		t->vt_max = opmax;
+		t->var_min = ctlmin;
+		t->var_max = ctlmax;
+	}
 	t->volt_ctl = volt_ctl;
 	t->adm_sh = makecomp(shcon, shsus);
 	t->adm_self = makecomp(0, 0);

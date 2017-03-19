@@ -5,19 +5,19 @@
 
 int print_test_msg = 0;
 
-#define MAXNAME 100
-static char *excludelist[MAXNAME+1];
+#define MAXLIST 100
+static char *excludelist[MAXLIST+1];
 static int pe = 0;
-static char *includelist[MAXNAME+1];
+static char *includelist[MAXLIST+1];
 static int pi = 0;
 
 void excluding(char *name) {
-	if (pe < MAXNAME)
+	if (pe < MAXLIST)
 		excludelist[pe++] = strdup(name);
 }
 
 void including(char *name) {
-	if (pi < MAXNAME)
+	if (pi < MAXLIST)
 		includelist[pi++] = strdup(name);
 }
 
@@ -42,17 +42,18 @@ void msg(FILE *fp, char *fmt, ...) {
 }
 
 void print_except(void) {
+	#pragma STDC FENV_ACCESS on
 	int res = fetestexcept(FE_ALL_EXCEPT);
 
 	if (res & FE_INEXACT)
-		printf("warning: floating point: loss precision\n");
+		msg(stderr,"warning: floating point: loss precision\n");
 	if (res & FE_UNDERFLOW)
-		printf("warning: floating point: underflow\n");
+		msg(stderr,"warning: floating point: underflow\n");
 	if (res & FE_OVERFLOW)
-		printf("warning: floating point: overflow\n");
+		msg(stderr,"warning: floating point: overflow\n");
 	if (res & FE_DIVBYZERO)
-		printf("warning: floating point: div by zero\n");
+		msg(stderr,"warning: floating point: div by zero\n");
 	if (res & FE_INVALID)
-		printf("warning: floating point: invalid operation\n");
+		msg(stderr,"warning: floating point: invalid operation\n");
 	feclearexcept(FE_ALL_EXCEPT);
 }
