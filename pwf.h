@@ -131,7 +131,6 @@ int nodetype(int ntype);
 void reorder(struct node **nodes, int lim, int type);
 void pvpqsl(void);
 void flatstart(double *ef, double *ex);
-ZZZ
 
 int trim(char *s);
 int titlescan(void);

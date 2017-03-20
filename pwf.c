@@ -749,7 +749,7 @@ int pf(int lim, double tol, char *method, int ischeck) {
 		return -1;
 	}
 
-	flatstart(errf, errx);
+	flatstart(&errf, &errx);
 	if (errf <= tol || errx <= tol)
 		return 0;
 	reorder(all_node, nnode, NODELINES);
@@ -757,7 +757,7 @@ int pf(int lim, double tol, char *method, int ischeck) {
 		powerf(&errf, &errx);
 		if (ischeck && checknode() > 0)
 			continue;
-		if (errf <= tol)
+		if (errf <= tol || errx <= tol)
 			break;
 	}
 	reorder(all_node, nnode, NODENO);
@@ -945,20 +945,16 @@ void pvpqsl(void) {
 	msg(stderr, "pwf: reorder: total = %d\n", nnode);
 }
 
-/* flat start of power flow with one cycle of gs iteration */
+/* flat start of power flow with one cycle of GS iteration */
 void flatstart(double *ef, double *ex) {
 	struct node **t;
-	double vl; 
 	struct comp volt;
 
 	pvpqsl();
 	volt = sl_node->volt;
-	looppqnode(t)
-		(*t)->volt = volt; /* set PQ Nodes' voltages to Slack node's v*/
-	looppvnode(t) {
-		/* set PV nodes' voltages to their countrols */
-		vl = (*t)->volt_ctl;
-		setnodeinfo(*t, vl, VOLT);
-	}
-	gs(ef, ex);
+	looppq(t)	/* set PQ Nodes' voltages to Slack node's v*/
+		(*t)->volt = volt; 
+	looppv(t) 	/* set PV nodes' voltages to their countrols */
+		setnodeinfo(*t, (*t)->volt_ctl, VOLT);
+	gs(ef, ex);	/* perform one cycle of G-S flow */
 }

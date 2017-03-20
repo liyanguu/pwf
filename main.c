@@ -96,7 +96,7 @@ void loadflow(FILE *ifp, FILE *ofp) {
 		meth = "n";
 		fprintf(stderr, "极坐标牛顿法计算\n");
 	} 
-	flatstart();
+
 	inum = pf(lim, tol, meth, flag.adjusted);
 	if (inum == -1) {
 		fprintf(stderr, "错误的计算方法\n");
