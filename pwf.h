@@ -14,7 +14,11 @@
 #define fixzero(x) (((x) <= 1e-8 && (x) >= -1e-8) ? 0. : (x))
 #define reducerad(x) (((x) >= 2*PI) ? fmod(x, 2*PI) : (x))
 #define loopnode(t) for (t=all_node; t - all_node < nnode; t++)
+#define looppv(t) for (t=pv_node; t - pv_node < npvnode; t++)
+#define looppq(t) for (t=pq_node; t - pq_node < npqnode; t++)
 #define loopbranch(b) for (b=all_branch; b - all_branch < nbranch; b++)
+#define getnode(i) ((i >= 0 && i < nnode) ? all_node[i] : NULL)
+#define getbranch(i) ((i >= 0 && i < nbranch) ? all_branch[i] : NULL)
 
 enum cdf_type { TITLE, BUS, BRANCH, END, EOD };
 /* node_type & branch_type: 
@@ -57,7 +61,7 @@ struct node {
 	char *name;
 	double basekv;
 	double loadmw, loadmvar;
-	struct comp pw;		/* net power injection p.u.=Pg-Pd + j(Qg-Qd)*/
+	struct comp pw;		/* scheduled power p.u. = Pg-Pd + j(Qg-Qd)*/
 	struct comp pw_act;	/* actual calculated power p.u. */
 	struct comp volt;	/* initial nodal voltage p.u. */
 	struct comp adm_sh;	/* shunt G, B in p.u. */ 
@@ -112,8 +116,6 @@ struct nodechain *invchain(struct nodechain *h);
 struct node *findnode(int no);
 struct nodechain *findnbr(struct node *, struct node *);
 void getsize(int*, int*);
-struct node *getnode(int);
-struct branch *getbranch(int);
 struct node *addnode(void);
 struct branch *addbranch(void);
 void clear(void);
@@ -128,7 +130,8 @@ Elm getsysinfo(struct node *ti, struct node *tj, int name);
 int nodetype(int ntype);
 void reorder(struct node **nodes, int lim, int type);
 void pvpqsl(void);
-void flatstart(void);
+void flatstart(double *ef, double *ex);
+ZZZ
 
 int trim(char *s);
 int titlescan(void);

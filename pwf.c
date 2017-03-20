@@ -63,13 +63,6 @@ void getsize(int *maxnd, int *maxbr) {
 	*maxbr = nbranch;
 }
 
-struct node *getnode(int n) {
-	if (n < 0 || n >= nnode)
-		return NULL;
-	else
-		return all_node[n];
-}
-
 struct node *addnode(void) {
 	struct node *t;
 
@@ -92,13 +85,6 @@ void nodefree(struct node *t) {
 void branchfree(struct branch *b) {
 	if (b != NULL)
 		free(b);
-}
-
-struct branch *getbranch(int bn) {
-	if (bn < 0 || bn >= nbranch)
-		return NULL;
-	else
-		return all_branch[bn];
 }
 
 struct branch *addbranch(void) {
@@ -381,9 +367,9 @@ int gs(double *errf, double *errx) {
 			v_temp = node_volt(t);
 			break;
 		case PV:
+			v_temp = node_volt(t);
 			p_temp = node_pw(t);	/* calc net power P + jQ */
 			t->pw.y = p_temp.y;
-			v_temp = node_volt(t);
 			break;
 		default:
 			msg(stderr, 
@@ -461,7 +447,7 @@ int makeindex(Elm *errf, Elm *arg) {
 		if (t->type == SLACK)
 			continue;	/* skip slack bus */
 		jacalc(t);
-		/* both PQ and PV buses have DP */
+		/* both PQ and PV buses have index DP */
 		addpwindex(j, t, DP, DA);
 		arg[j] = t->pw.x - t->pw_act.x;
 		j++;
@@ -579,7 +565,7 @@ Size recmakeindex(Elm *errf, Elm *arg) {
 void updateindex(Elm *arg, Size dim, Elm *errx) {
 	Size i;
 	struct node *t;
-	Elm da, dv, ang;
+	Elm da, dv, ang, vol;
 	int rtype;
 
 	norm(arg, dim, errx);
@@ -590,13 +576,17 @@ void updateindex(Elm *arg, Size dim, Elm *errx) {
 		case DA:
 			da = arg[i];
 			t->volt = compmul(t->volt, makecomp(cos(da), sin(da)));
-			msg(stderr, "pwf: updateindex: da is %g\n", arg[i]);
+			msg(stderr, "pwf: updateindex: da of %4d is %g\n", 
+				t->no, da);
 			break;
 		case DV:
-			dv = arg[i] + compscale(t->volt);
+			vol = compscale(t->volt);
+			dv = arg[i] * vol;
+			vol += dv;
 			ang = angle(t->volt);
-			t->volt = makecomp(dv*cos(ang), dv*sin(ang));
-			msg(stderr, "pwf: updateindex: dv is %g\n", arg[i]);
+			t->volt = makecomp(vol*cos(ang), vol*sin(ang));
+			msg(stderr, "pwf: updateindex: dv of %4d is %g\n", 
+				t->no, dv);
 			break;
 		case DVE:
 			t->volt.x -= arg[i];
@@ -759,6 +749,9 @@ int pf(int lim, double tol, char *method, int ischeck) {
 		return -1;
 	}
 
+	flatstart(errf, errx);
+	if (errf <= tol || errx <= tol)
+		return 0;
 	reorder(all_node, nnode, NODELINES);
 	for (i = 1; i <= lim; i++) {
 		powerf(&errf, &errx);
@@ -953,25 +946,19 @@ void pvpqsl(void) {
 }
 
 /* flat start of power flow with one cycle of gs iteration */
-void flatstart(void) {
+void flatstart(double *ef, double *ex) {
 	struct node **t;
-	double ef, ex, vctl; 
+	double vl; 
 	struct comp volt;
 
 	pvpqsl();
 	volt = sl_node->volt;
-	loopnode(t) {
-		switch((*t)->type) {
-		case PQ:
-			(*t)->volt = volt; /* set to Slack node's voltage */
-			break;
-		case PV:
-			vctl = (*t)->volt_ctl;
-			setnodeinfo(*t, vctl, VOLT);
-			break;
-		default:
-			break;
-		}
+	looppqnode(t)
+		(*t)->volt = volt; /* set PQ Nodes' voltages to Slack node's v*/
+	looppvnode(t) {
+		/* set PV nodes' voltages to their countrols */
+		vl = (*t)->volt_ctl;
+		setnodeinfo(*t, vl, VOLT);
 	}
-	gs(&ef, &ex);
+	gs(ef, ex);
 }
