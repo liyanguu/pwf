@@ -20,6 +20,7 @@ struct comp {
 struct comp makecomp(double, double);
 struct comp compadd(struct comp, struct comp);
 struct comp compmul(struct comp, struct comp);
+struct comp compmuls(struct comp a, double s);
 struct comp compmns(struct comp, struct comp);
 struct comp compdiv(struct comp, struct comp);
 struct comp compinv(struct comp);

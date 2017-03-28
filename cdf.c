@@ -9,6 +9,7 @@
 #include <time.h>
 #include <math.h>
 #include "pwf.h"
+#include "comp.h"
 
 		/* 6 items */
 #define TITLEFMT	" %8c %20c %lf %d %1s %30c"
@@ -253,7 +254,7 @@ int writebranch(struct branch *b) {
 		b->inode->no, b->jnode->no,
 		1, 1, 1, b->type,
 		imp.x, imp.y, b->linechar, 
-		0, 0, 0, 0, 0, b->k.x, b->k.y,
+		0, 0, 0, 0, 0, b->t, .0,
 		.0, .0, .0, .0, .0);
 	return nbytes;
 }
@@ -316,33 +317,26 @@ struct branch *makebranch(struct branch *b) {
 	b->linechar = linechar;
 	imp_b = makecomp(br, bx);
 	b->adm_line = comprec(imp_b);
-	b->k = makecomp(tfinalturn, tfinalang);	/* final turn ratio k */
+	b->t = tfinalturn;
 	return b;
 }
 
 /* calculate the pi-model of transmission lines */
 void branchcalc(struct branch *b) {
 	struct comp adm; 
-	struct comp k1;	/* k one */
+	double t;
 
 	switch (b->type) {
-	case AC: case FT:	/* ac line 暂时把FT也归入此类 */
+	case AC:	/* ac line */
 		b->adm_se = b->adm_line;
-		b->iadm_sh = makecomp(.0, b->linechar/2.0);
-		b->jadm_sh = makecomp(.0, b->linechar/2.0);
+		b->adm_ish = b->adm_jsh = makecomp(.0, b->linechar/2.0);
 		break;
-	case 99:	/* fixed voltage ratio or fiexd phase angle */
-		k1 = makecomp(1.0, .0);
-		k1 = compmns(b->k, k1);			/* k - 1 */
-		b->adm_se = compmul(b->adm_line, b->k); 		/* yk */
-		adm = makecomp(.0, b->linechar/2.0);		/* 1/2 line char y0 */
-		adm = compmul(adm, compmul(b->k ,b->k));	/* y0 . k^2 */
-		adm = compadd(adm, 				/* + y . k . (k-1) */
-			compmul(b->adm_line, compmul(b->k, k1)));
-		b->iadm_sh = adm;
-		adm = makecomp(.0, linechar/2.0);		/* y0 */
-		adm = compadd(adm, compmul(b->adm_line, compinv(k1)));	/* +(1-k)y */
-		b->jadm_sh = adm;
+	case FT:	/* fixed tap transformer */
+		adm = b->adm_line;
+		t = b->t;
+		b->adm_se = compmuls(adm, t); /* Tij * yij */
+		b->adm_ish = compmuls(adm, t*t - t); /* (Tij ** 2 - Tij)*yij*/
+		b->adm_jsh = compmuls(adm, 1 - t);  /* (1 - Tij) * yij */
 		break;
 	default:
 		fprintf(stderr, "cdf error: wrong branch type, %d\n", b->type);
@@ -360,9 +354,9 @@ void nodecalc(struct node *t) {
 	for (pc = t->nbr; pc != NULL; pc = pc->next) {
 		adm = compadd(pc->b->adm_se, adm);
 		if (t == pc->b->inode)
-			adm = compadd(pc->b->iadm_sh, adm);
+			adm = compadd(pc->b->adm_ish, adm);
 		else
-			adm = compadd(pc->b->jadm_sh, adm);
+			adm = compadd(pc->b->adm_jsh, adm);
 		t->nconnect++;
 	}
 	t->adm_self = adm;

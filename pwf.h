@@ -4,13 +4,12 @@
 #define H_PWF
 
 #include <stdio.h>
-#include <math.h>
 #include "comp.h"
-#include "mtx.h"
 
 #define MAXNODE 500
 #define MAXBRANCH 1000
 #define MAXJAC 1000
+#define abs(x) ((x) < 0 ? -(x) : (x))
 #define fixzero(x) (((x) <= 1e-8 && (x) >= -1e-8) ? 0. : (x))
 #define reducerad(x) (((x) >= 2*PI) ? fmod(x, 2*PI) : (x))
 #define loopnode(t) for (t=all_node; t - all_node < nnode; t++)
@@ -34,8 +33,9 @@ enum node_error_flag {
 };
 enum index_type { DP, DQ, DV, DA, DPR, DQR, DVS, DVE, DVF, 
 	H, L, M, N , J1, J2, J3 , J4, J5, J6 };
-enum node_info_type { G, B, QGEN, QGENINC, VOLT, VOLTINC, ANG, ANGINC };
+enum node_info_type { G, B, QGEN, QGENINC, VOLT, VOLTINC, ANG, ANGINC, VOLT_ANG };
 enum order_type { NODELINES, NODENO, NODETYPE };
+enum powerflow_type { GS, NR_POL, NR_REC };
 
 extern double basemva;
 extern int nnode;	/* number of system nodes */
@@ -47,6 +47,7 @@ extern struct node *pv_node[MAXNODE];		/* PV nodes buffer */
 extern struct node *pq_node[MAXNODE];		/* PQ nodes buffer */
 extern struct node *sl_node;			/* slack node ptr */
 extern struct branch *all_branch[MAXBRANCH];	/* system branches buffer */
+extern int pftype;	/* power flow type: GS or NR_POL or NR_REC */
 
 struct jacelm {
 	double h, m, n, l;
@@ -81,11 +82,11 @@ struct branch {
 	struct node *inode;	/* tap side node ptr (tap bus) */
 	struct node *jnode;	/* z side  node ptr (z bus) */
 	double linechar;	/* total line charging, ref to paper 04075293 */
-	struct comp k;		/* transformer final turns ratio (complex) */ 
+	double t;		/* transformer final tap ratio  */ 
 	struct comp adm_line;	/* normal (line) adm of a transformer */
 	struct comp adm_se;	/* branch series admitance of pi circuit */
-	struct comp iadm_sh;	/* tap side shunt adm of pi circuit */
-	struct comp jadm_sh;	/* z side shunt adm of pi circuit*/
+	struct comp adm_ish;	/* tap side shunt adm of pi circuit */
+	struct comp adm_jsh;	/* z side shunt adm of pi circuit*/
 };
 
 struct nodechain {		/* chain of inter-connected nodes */
@@ -103,12 +104,10 @@ struct jacidx {
 };
 
 void ycalc(void);
-void jacalc(struct node *);
 struct comp node_pw(struct node *);
 struct comp line_flow(struct node *pn);
 struct comp b_flow(int, struct branch *);
-int gs(double *errf, double *errx);
-int nr(double *errf, double *errx);
+int gs(double *errf);
 struct nodechain *chainalloc(void);
 void chainfree(struct nodechain* p);
 struct nodechain *addchain(struct nodechain *pc, struct node *pn, struct branch *pb);
@@ -119,18 +118,29 @@ void getsize(int*, int*);
 struct node *addnode(void);
 struct branch *addbranch(void);
 void clear(void);
-void printjac(void);
 void printnode(void);
 void printybus(void);
 void printlinef(void);
-int pf(int lim, double tol, char *method, int ischeck);
-void setnodeinfo(struct node *t, Elm, int name);
-Elm getnodeinfo(struct node *t, int name);
-Elm getsysinfo(struct node *ti, struct node *tj, int name);
+void setnodeinfo(struct node *t, int name, ...);
+double getnodeinfo(struct node *t, int name);
+double getsysinfo(struct node *ti, struct node *tj, int name);
 int nodetype(int ntype);
 void reorder(struct node **nodes, int lim, int type);
 void pvpqsl(void);
-void flatstart(double *ef, double *ex);
+void flatstart(double *ef);
+struct jacelm jacalc(struct node *);
+struct jacelm jachaincalc(struct node *, struct nodechain *);
+int jactype(int ltype, int rtype);
+double getjac(int i, int j);
+int makeindex(double *ef, double **arg);
+int recmakeindex(double *ef, double **arg);
+void updateindex(void);
+void updatenp(void);
+int checknode(void);
+int norm(double *v, int lim, double *max);
+
+int pf(int lim, double tol, char *method, int ischeck);
+void printjac(void);
 
 int trim(char *s);
 int titlescan(void);

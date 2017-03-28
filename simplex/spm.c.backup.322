@@ -8,25 +8,28 @@ Spm spalloc(void) {
 	return (Spm) malloc(sizeof(struct spm_struct));
 }
 
-/* spelalloc - allocate a sparse element structure */
-spel spelalloc(void) {
-	return (spel) malloc(sizeof(struct spel_struct));
+/* spelalloc - allocate n sparse elements */
+spel spelalloc(Size n) {
+	return (spel) malloc(sizeof(struct spel_struct) * n);
 }
 
-/* spcreat - create an empty sparse matrix */
-Spm spcreat(void) {
-	Spm sp;
+/* spcreat - create a nrow by ncol matrix */
+Spm spcreat(Size nrow, Size ncol) {
+	Spm m;
+	Size i;
 
-	sp = spalloc();
-	sp->el = NULL;
-	sp->rowno = 1;
-	sp->prev = sp->next = NULL;
-	return sp;
-}
-
-Spm spadd(Size i, Size j, Elm v, Spm sp) {
-	Spm p;
-
+	if (nrow <= 0 || ncol <= 0)
+		return NULL;
+	m = spalloc();
+	m->val = spelalloc(nrow); /* allocate the diagnal elems */
+	m->nrow = nrow;
+	m->ncol = ncol;
+	for (i=0; i < nrow; i++) {
+		m->val[i].v = .0;
+		m->val[i].colno = 0; /* # non-diagnal elems in this row */
+		m->val[i].nextcol = NULL;
+	}
+	return m;
 }
 
 /* sprow - return the pointer to the first none diagnal element */

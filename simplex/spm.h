@@ -1,7 +1,7 @@
 /* spm.h - SParse Matrix definition */
 
-#ifndef H_spm_H
-#define H_spm_H
+#ifndef HH_spm_
+#define HH_spm_
 
 #include "mtx.h"
 
@@ -12,8 +12,10 @@ typedef struct spel_struct {		/* a sparse matrix element */
 } *spel; 
 
 typedef struct spm_struct {		/* a sparse matirx */
-	spel val;		/* diagnal elements */ 
-	Size nrow, ncol;	/* dimension */
+	spel el;		/* ptr to elements */ 
+	int rowno;
+	struct spm_struct *next;	/* ptr to the next row */
+	struct spm_struct *prev;	/* ptr to the previous row */
 } *Spm;
 
 #define validate(a, i, j) ((i) >= 0 && (i) < (a)->nrow && (j) >= 0 && (j) < (a)->ncol)

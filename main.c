@@ -55,8 +55,7 @@ int main(int argc, char *argv[]) {
 	}
 	if (argc < 0) {
 		fprintf(stderr, 
-			"用法: %s [-gcnly] [-lim] [+tol] [-ooutfile] infile\n",
-			progname); 
+			"用法: %s [-agcnly] [-lim] [+tol] [-ooutfile] infile\n", progname); 
 		exit(1);
 	}
 	if (argc == 0)
