@@ -1,27 +1,37 @@
 SRCS = main.c misc.c
-OBJS := $(SRCS:.c:=.o)
-DEPS := $(SRCS:.c:=.d)
+OBJS := $(SRCS:%.c=%.o)
+DEPS := $(SRCS:%.c=%.d)
 CC = gcc
 LOADER = gfortran
-CFLAGS = -Wall -O3 -I..
-CPPFLAGS = -I..
+PWF_PATH = ../pwf
+CFLAGS := -Wall -O3
+CPPFLAGS := -I$(PWF_PATH)
+LDFLAGS := -L$(PWF_PATH)
 LA_LIB = lapacke cblas lapack refblas 
 KLU_LIB = csparse klu amd colamd btf
 LIBS := dl pwf m $(LA_LIB) $(KLU_LIB)
+EXES = minq
 
-minq: $(OBJS) 
-	$(MAKE) -C .. lib
-	$(LOADER) -o $@ $^ -L.. $(addprefix -l,$(LIBS))
+.PHONY : all pwflib
 
-include $(DEPS)
+all : $(EXES)
+
+$(EXES) : $(OBJS) pwflib  
+	$(LOADER) -o $@ $(filter-out pwflib, $^) $(LDFLAGS) $(addprefix -l,$(LIBS))
+
+pwflib :
+	$(MAKE) -C $(PWF_PATH) lib
 
 %.d : %.c
-	@set -e ;\
-	rm -f $@; \
+	@set -e; rm -f $@; \
 	$(CC) -MM $(CPPFLAGS) $< >$@.$$$$; \
 	sed 's,\($*\.o\)[ :]*,\1 $@ : ,g' <$@.$$$$ >$@; \
 	rm -f $@.$$$$
 
-.PHONY : clean
+-include $(DEPS)
+
+.PHONY : clean veryclean
 clean :
 	rm -rf $(OBJS) $(DEPS)
+veryclean : clean
+	rm -rf $(EXES)

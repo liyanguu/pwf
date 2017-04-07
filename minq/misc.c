@@ -73,11 +73,11 @@ void minq_start(char *casename, char *logname, char *dataname) {
 			writelog("%10d ", busno[i]+1);
 		writelog("\n");
 		writelog("Vmin\t");
-		writearray(logfp, vmin, dim);
+		writearray(vmin, dim);
 		writelog("Vmax\t");
-		writearray(logfp, vmax, dim);
+		writearray(vmax, dim);
 		writelog("Qmax\t");
-		writearray(logfp, qmax, dim);
+		writearray(qmax, dim);
 		readcdf(lffp);
 		minq_lf();
 }
@@ -258,17 +258,17 @@ void minq_log(void) {
 		writelog("%10d ", busno[i]+1);
 	writelog("\n");
 	writelog("rhs\t");  /* 输出电压补偿量(rhs) */
-	writearray(logfp, vcormin, dim);
+	writearray(vcormin, dim);
 	writelog("Vac\t");  /* 输出潮流计算电压 */
-	writearray(logfp, vac, dim);
+	writearray(vac, dim);
 	writelog("Vmin-Vac\v"); /* 输出电压偏差 */
-	writearray(logfp, vdiff, dim);
+	writearray(vdiff, dim);
 	writelog("%s\t%10.5f\n", "max", maxdiff);  /* 输出电压偏差 */
 	writelog("kvar comp\v"); /* 输出节点电容补偿量(解) */
-	writearray(logfp, qgen, dim);
+	writearray(qgen, dim);
 	writelog("%s\t%10.5f\n", "total comp", totq);
 	writelog("linerized volt comp\v");	/* 输出节点电压补偿量(解) */
-	writearray(logfp, vc, dim);
+	writearray(vc, dim);
 	writelog("\n");
 }
 
@@ -299,10 +299,10 @@ void writelog(char *title, ...) {
 	}	
 }
 
-void writearray(FILE *fp, double *v, int lim) {
+void writearray(double *v, int lim) {
 	while (lim-- > 0)
-		fprintf(fp, "%10.4f ", *v++);
-	fprintf(fp, "\n");
+		writelog("%10.4f ", *v++);
+	writelog("\n");
 }
 
 void minq_end(void) {
@@ -341,36 +341,51 @@ int readline(FILE *fp, char *line, int len) {
 #define MAXLINE 100
 
 int readdata(FILE *fp) {
-	double data;
-	int nodeno;
-	char name[50];
 	char line[MAXLINE];
 
-	readline(fp, line, MAXLINE);
-	sscanf(line, "dimension %d", &dim);
-	readline(fp, line, MAXLINE);
-	sscanf(line, "alpha %lf", &alp);
-	for (nodeno = 0; readline(fp, line, MAXLINE); nodeno++) {
-		if (!strcmp(line, "node")) {
-			while (readline(fp, line, MAXLINE)) {
-				sscanf(line, "%s %lf", name, &data);
-				if (!strcmp(name, "no")) {
-					/* pwf busno's start from 0 */
-					busno[nodeno] = (int) data - 1;
-					fprintf(stderr, "busno: %d\n", busno[nodeno]);
-				} else if (!strcmp(name, "vmin"))
-					vmin[nodeno] = data;
-				else if (!strcmp(name, "vmax"))
-					vmax[nodeno] = data;
-				else if (!strcmp(name, "qmax"))
-					qmax[nodeno] = data;
-				else if (!strcmp(name, "theta"))
-					theta[nodeno] = data;
-				else if (!strcmp(name, "end"))
-					break;
-			}
+	while (readline(fp, line, MAXLINE)) {
+		if (strstr(line, "dimension")) {
+			if (sscanf(line, "dimension %d", &dim) != 1)
+				return 0;
+		} else if (strstr(line, "alpha")) {
+			if (sscanf(line, "alpha %lf", &alp) != 1)
+				return 0;
+		} else if (!strcmp(line, "node")) {
+			if (!scannode(fp))
+				return 0;
 		} else
 			return 0;
 	}
 	return 1;
+}
+
+int scannode(FILE *fp) {
+	char name[50];
+	char line[MAXLINE];
+	double data;
+	static int nodeno = 0;
+
+	while (readline(fp, line, MAXLINE)) {
+		sscanf(line, "%s %lf", name, &data);
+		if (!strcmp(name, "no")) {
+			/* pwf busno's start from 0 */
+			busno[nodeno] = (int) data - 1;
+			fprintf(stderr, "busno: %d\n", busno[nodeno]);
+		} else if (!strcmp(name, "vmin"))
+			vmin[nodeno] = data;
+		else if (!strcmp(name, "vmax"))
+			vmax[nodeno] = data;
+		else if (!strcmp(name, "qmax"))
+			qmax[nodeno] = data;
+		else if (!strcmp(name, "theta"))
+			theta[nodeno] = data;
+		else if (!strcmp(name, "end")) {
+			nodeno++;
+			return 1;
+		} else {
+			fprintf(stderr, "unkown name: %s\n", name);
+			break;
+		}
+	}
+	return 0;
 }

@@ -3,7 +3,7 @@
 #dim - problem dimension
 dimension  4
 #alpha - iteration factor
-alpha   1.0
+alpha   2.0
 
 node
 no	7

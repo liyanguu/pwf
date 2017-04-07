@@ -102,6 +102,8 @@ int gspf(int lim, double tol, int ischeck) {
 	for (i = 1; i <= lim; i++) {
 		if (!gs(&errf))
 			return -1;
+		if (ischeck && checknode() > 0)
+			continue;
 		if (errf <= tol)
 			break;
 	}
@@ -113,7 +115,7 @@ int gspf(int lim, double tol, int ischeck) {
 	tol - tolerance
 	method - 
 		'n' - polar Newton-Raphson
-		'r' - rectangular Newton-Raphson
+		'r' - rectangular Newton-Raphson (not supported now)
 		'g' - Gauss-Seidal
 	ischeck -
 		1 - regulated load flow

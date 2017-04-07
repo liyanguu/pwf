@@ -13,7 +13,7 @@ all : pwf lib
 pwf : $(OBJS)
 	$(LOADER) -o $@ $^ $(addprefix -l, $(LIBS))
 
-lib : libpwf($(filter-out main.o, *.o))
+lib : libpwf.a
 
 libpwf.a : $(filter-out main.o, $(OBJS))
 	ar crs $@ $?
