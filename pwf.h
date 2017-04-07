@@ -9,15 +9,15 @@
 #define MAXNODE 500
 #define MAXBRANCH 1000
 #define MAXJAC 1000
-#define abs(x) ((x) < 0 ? -(x) : (x))
+#define myabs(x) ((x) < 0 ? -(x) : (x))
 #define fixzero(x) (((x) <= 1e-8 && (x) >= -1e-8) ? 0. : (x))
 #define reducerad(x) (((x) >= 2*PI) ? fmod(x, 2*PI) : (x))
 #define loopnode(t) for (t=all_node; t - all_node < nnode; t++)
 #define looppv(t) for (t=pv_node; t - pv_node < npvnode; t++)
 #define looppq(t) for (t=pq_node; t - pq_node < npqnode; t++)
 #define loopbranch(b) for (b=all_branch; b - all_branch < nbranch; b++)
-#define getnode(i) ((i >= 0 && i < nnode) ? all_node[i] : NULL)
-#define getbranch(i) ((i >= 0 && i < nbranch) ? all_branch[i] : NULL)
+#define getnode(i) (((i) >= 0 && (i) < nnode) ? all_node[(i)] : NULL)
+#define getbranch(i) (((i) >= 0 && (i) < nbranch) ? all_branch[(i)] : NULL)
 
 enum cdf_type { TITLE, BUS, BRANCH, END, EOD };
 /* node_type & branch_type: 
@@ -115,6 +115,7 @@ struct nodechain *invchain(struct nodechain *h);
 struct node *findnode(int no);
 struct nodechain *findnbr(struct node *, struct node *);
 void getsize(int*, int*);
+int getnnode(void);
 struct node *addnode(void);
 struct branch *addbranch(void);
 void clear(void);
@@ -123,7 +124,7 @@ void printybus(void);
 void printlinef(void);
 void setnodeinfo(struct node *t, int name, ...);
 double getnodeinfo(struct node *t, int name);
-double getsysinfo(struct node *ti, struct node *tj, int name);
+int getsysinfo(double *val, struct node *ti, struct node *tj, int name);
 int nodetype(int ntype);
 void reorder(struct node **nodes, int lim, int type);
 void pvpqsl(void);
@@ -131,13 +132,13 @@ void flatstart(double *ef);
 struct jacelm jacalc(struct node *);
 struct jacelm jachaincalc(struct node *, struct nodechain *);
 int jactype(int ltype, int rtype);
-double getjac(int i, int j);
+int getjac(double *val, int i, int j);
 int makeindex(double *ef, double **arg);
+void updatedf(double *ef, double **arg);
 int recmakeindex(double *ef, double **arg);
 void updateindex(void);
 void updatenp(void);
 int checknode(void);
-int norm(double *v, int lim, double *max);
 
 int pf(int lim, double tol, char *method, int ischeck);
 void printjac(void);

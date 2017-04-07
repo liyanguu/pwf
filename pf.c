@@ -1,28 +1,30 @@
 /* pf.c - implementation of Newton-Raphson power flow */
 
 #include <stdio.h>
-#include "cs.h"
-#include "klu.h"
+#include <cs.h>
+#include <klu.h>
+#include "mtx.h"
 #include "pwf.h"
 
+/* makejac - create and / or update the Jacobian matrix */
 cs *makejac(int dim) {
 	int i, j;
+	double v;
 	static cs *jac_trip;
-	static int jac_dim;
 
-
-	if (dim <= 0) /* use the OLD Jacobian */
-		dim = jac_dim;
-	else {/* delete the old Jacobian matrix */
+	if (dim == 0) /* Reuse the OLD Jacobian */
+		return jac_trip;
+	else {	/* delete the old Jacobian matrix */
 		if (jac_trip != NULL) 
 			cs_spfree(jac_trip);
-		jac_trip = cs_spalloc(dim, dim, dim, 1, 1);
-		jac_dim = dim;
+		if ((jac_trip = cs_spalloc(dim, dim, dim, 1, 1))==NULL)
+			return NULL;
 	}
 
 	for (i = 0; i < dim; i++) {
 		for (j = 0; j < dim; j++) {
-			cs_entry(jac_trip, i, j, getjac(i, j));
+			if (getjac(&v, i, j))
+				cs_entry(jac_trip, i, j, v); 
 		}
 	}
 	return jac_trip;
@@ -75,20 +77,20 @@ int nrpf(int lim, double tol, int ischeck) {
 	if (errf <= tol)
 		return 0;
 	dim = makeindex(&errf, &dfargs);
-	if (errf <= tol)
-		return 0;
 	for (i = 1; i <= lim; i++) {
-		jacob = makejac(dim);
+		if ((jacob = makejac(dim)) == NULL)
+			return -1;
 		jacsolve(jacob, dfargs);
-		norm(dfargs, abs(dim), &errx); 
+		norm(dfargs, myabs(dim), &errx);
 		if (errx <= tol)
 			return i;
 		updateindex();
 		updatenp();
-		if (ischeck && checknode() > 0)
-			dim = makeindex(&errf, &dfargs);
-		else
-			dim = -dim;
+		if (ischeck)
+			checknode();
+		dim = makeindex(&errf, &dfargs);	/* rebuild the index */
+		if (errf <= tol)
+			return i;
 	}
 	return i;
 }
@@ -98,7 +100,8 @@ int gspf(int lim, double tol, int ischeck) {
 	double errf;
 
 	for (i = 1; i <= lim; i++) {
-		gs(&errf);
+		if (!gs(&errf))
+			return -1;
 		if (errf <= tol)
 			break;
 	}

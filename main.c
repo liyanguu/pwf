@@ -85,9 +85,6 @@ void loadflow(FILE *ifp, FILE *ofp) {
 	if (flag.use_gauss) {
 		meth = "g";
 		fprintf(stderr, "高斯法计算\n");
-	} else if (flag.use_sparse) {
-		meth = "s";
-		fprintf(stderr, "稀疏牛顿法计算\n");
 	} else if (flag.rect) {
 		meth = "r";
 		fprintf(stderr, "直角坐标牛顿法计算\n");
@@ -158,9 +155,10 @@ int getopt(char *p) {
 			flag.rect = 1;
 			break;
 		case 'o':
-			if ((ofp = fopen(++p, "w")) == NULL)
+			if ((ofp = fopen(++p, "w")) == NULL) {
+				fprintf(stderr, "error: 无法打开输出文件 %s\n", p);
 				return 1;
-			else
+			} else
 				return 0;
 		default:
 			fprintf(stderr, ERR_WRONG_OPT, *p);

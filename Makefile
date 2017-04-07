@@ -1,25 +1,30 @@
-SRCS = main.c pwf.c cdf.c pf.c comp.c msg.c 
+SRCS = main.c pwf.c cdf.c pf.c comp.c msg.c mtx.c
 OBJS = $(patsubst %.c, %.o, $(SRCS))
 CC = gcc
-CFLAGS = -Wall -O3
-KLU_PATH = klusolve-code-45
-LIBS = m klu csparse amd btf colamd
+LOADER = gfortran
+CFLAGS = -Wall -O3 
+LA_LIB = lapacke cblas lapack refblas tmglib
+KLU_LIB = klu csparse amd btf colamd 
+LIBS := $(LA_LIB) $(KLU_LIB) m 
 
-vpath %.h $(KLU_PATH)/Include
+.PHONY : all lib
+all : pwf lib
 
 pwf : $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ -L$(KLU_PATH)/Lib $(addprefix -l, $(LIBS))
+	$(LOADER) -o $@ $^ $(addprefix -l, $(LIBS))
 
-main.o pwf.o cdf.o pf.o : pwf.h msg.h
-pwf.o cdf.o : comp.h
-pf.o : pf.c comp.h cs.h klu.h
-	$(CC) -c $(CFLAGS) -o $@ $< -I$(KLU_PATH)/Include
+lib : libpwf($(filter-out main.o, *.o))
+
+libpwf.a : $(filter-out main.o, $(OBJS))
+	ar crs $@ $?
 
 depends : $(SRCS)
-	$(CC) -MM $^ >$@ -I$(KLU_PATH)/Include
+	$(CC) -MM $^ >$@ 
 
 -include depends
 
-.PHONY : clean
+.PHONY : veryclean clean
 clean : 
 	rm -rf $(OBJS)
+veryclean : clean
+	rm -rf pwf depends libpwf.a

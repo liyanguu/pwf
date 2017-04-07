@@ -174,6 +174,19 @@ Mtx rowcopy(Mtx mc, Mtx m, Size *idx, Size nrow) {
 	return mc;
 }
 
+int selectrow(Mtx m, Size rowno, Elm *val, Size len, Size *idx) {
+	Size i, n;
+
+	if (rowno < 0 || rowno >= m->nrow)
+		return 0;
+	for (i = 0; i < len; i++) {
+		if ((n = idx[i]) < 0 || n >= m->ncol)
+			return 0;
+		val[i] = m->val[rowno][n];
+	}
+	return 1;
+}
+
 /* submatrix m(:, col index) */
 Mtx colsub(Mtx m, Size *idx, Size ncol) {
 	Size i, j;
@@ -202,29 +215,30 @@ Mtx colcopy(Mtx mc, Mtx m, Size *idx, Size ncol) {
 	return mc;
 }
 
-/* mtxprint() - print a matrix */
-void mtxprint(char *ttl, Mtx a) {
+/* fmtxprt() - print a matrix to file fp */
+void fmtxprt(FILE *fp, char *title, Mtx a) {
 	Size i, j;
 	
-	printf("%s\n", ttl);
+	fprintf(fp, "%s =\n", title);
 	for (i = 0; i < a->nrow; ++i) {
 		for (j = 0; j < a->ncol; ++j)
-			printf("%10.5f ", getel(a, i, j)); 
-		putchar('\n');
+			fprintf(fp, "%10.5f ", a->val[i][j]);
+		putc('\n', fp);
 	}
-	putchar('\n');
+	putc('\n', fp);
 }
 
-void xmtxprint(char *ttl, Mtx a) {
+/* fxmtxprt - same as fmtxprt, but a transposed */
+void fxmtxprt(FILE *fp, char *title, Mtx a) {
 	Size i, j;
 
-	printf("%s\n", ttl);
+	fprintf(fp, "%s =\n", title);
 	for (i = 0; i < a->ncol; ++i) {
 		for (j = 0; j < a->nrow; ++j)
-			printf("%10.5f ", getel(a, j, i));
-		putchar('\n');
+			fprintf(fp, "%10.5f ", a->val[j][i]);
+		putc('\n', fp);
 	}
-	putchar('\n');
+	putc('\n', fp);
 }
 
 void mtxnprt(char *ttl, ...) {
@@ -357,21 +371,24 @@ int mtxsv(Mtx A, Mtx b) {
 	return info;
 }
 
+/* mtxinv - return the inverse of m, m unchanged */
 Mtx mtxinv(Mtx m) {
-	Mtx mcopy = mtxdup(m);
 	Size N = m->nrow;
 	Size lda = m->ncol;
 	Size *ipiv = malloc(m->nrow * sizeof(Size));
 	int flag;
+	Mtx mcopy = mtxdup(m);
 
 	flag = LAPACKE_dgetrf(LAPACK_ROW_MAJOR, N, N,
 		*mcopy->val, lda, ipiv);
+	msg(stderr, "mtx: mtxinv: dgetrf done\n");
 	if (flag) {
 		free(ipiv);
 		return NULL;
 	}
 	flag = LAPACKE_dgetri(LAPACK_ROW_MAJOR, N,
 		*mcopy->val, lda, ipiv);
+	msg(stderr, "mtx: mtxinv: dgetri done\n");
 	free(ipiv);
 	if (flag)
 		return NULL;
@@ -472,29 +489,101 @@ void lubksb(Mtx a, Size *indx, Elm *b) {
 	}
 }
 
+int chodcm(Mtx a, Elm *d, Elm *t) {
+	Size i, j, k;
+	Elm sum;
+
+	for (i = 0; i < a->nrow; ++i) {
+		sum = a->val[i][i];
+		for (j = 0; j < i; ++j) {
+			t[j] = a->val[j][i];
+			for (k = 0; k < j; ++k)
+				t[j] -= t[k] * a->val[j][k];
+			if (d[j] == 0) {
+				if (t[j] != 0) {
+					fprintf(stderr, "No Cholesky Decompsition\n");
+					return 0;
+				} else
+					a->val[i][j] = 1.0;
+			} else
+				a->val[i][j] = t[j] / d[j];
+			sum -= t[j] * a->val[i][j];
+		}
+		d[j] = sum;
+	}
+	return 1;
+}
+
+int chobsb(Mtx a, Elm *d, Elm *b) {
+	Size i, j;
+	Elm sum;
+
+	for (i = 0; i < a->nrow; ++i) {
+		sum = b[i];
+		for (j = 0; j < i; ++j)
+			sum -= a->val[i][j] * b[j];
+		b[i] = sum;
+	}
+	for (i = a->nrow-1; i >= 0; --i) {
+		if (d[i] == 0) {
+			fprintf(stderr, "singular matrix\n");
+			return 0;
+		}
+		sum = b[i] / d[i];
+		for (j = i+1; j < a->ncol; ++j)
+			sum -= a->val[j][i] * b[j];
+		b[i] = sum;
+	}
+	return 1;
+}
+
 /* return the inverse matrix of a, a unchanged */
-Mtx inverse(Mtx a) {
-	Mtx trinva, inv, acopy;
+Mtx inv(Mtx a) {
+	Mtx atr, ainv, acopy;
 	Elm det;
 	Size *indx = (Size *) malloc(sizeof(Size) * a->nrow);
 	Size i, j;
 
 	acopy = mtxdup(a);
-	trinva = mtxalloc(a->nrow, a->ncol);
+	atr = mtxalloc(a->nrow, a->ncol);
 	ludcmp(acopy, indx, &det);
-	for (i = 0; i < trinva->nrow; i++) {
-		for (j = 0; j < trinva->ncol; j++)
-			trinva->val[i][j] = .0;
-		trinva->val[i][i] = 1.0;
-		lubksb(acopy, indx, trinva->val[i]);
+	for (i = 0; i < atr->nrow; i++) {
+		for (j = 0; j < atr->ncol; j++)
+			atr->val[i][j] = .0;
+		atr->val[i][i] = 1.0;
+		lubksb(acopy, indx, atr->val[i]);
 	}
-	inv = trans(trinva);
+	ainv = trans(atr);
 	free(indx);
-	mtxfree(trinva);
-	printf("freed trinva\n");
+	mtxfree(atr);
+	printf("freed atr\n");
 	mtxfree(acopy);
 	printf("freed acopy\n");
-	return inv;
+	return ainv;
+}
+
+/* return the inverse of symmetirc matrix m, m unchanged */
+Mtx sinv(Mtx m) {
+	Elm *diag;
+	Elm *tmp;
+	Mtx mcopy;
+	Mtx minv;
+	Size i, j;
+
+	diag = (Elm *) malloc(sizeof(Elm) * m->nrow);
+	tmp = (Elm *) malloc(sizeof(Elm) * m->nrow);
+	mcopy = mtxdup(m);
+	minv = mtxalloc(m->nrow, m->ncol);
+	chodcm(mcopy, diag, tmp);
+	for (i = 0; i < m->nrow; i++) {
+		for (j = 0; j < m->ncol; j++)
+			minv->val[i][j] = (i == j) ? 1 : 0;
+		chobsb(mcopy, diag, minv->val[i]);
+	}
+	mtxfree(mcopy);
+	free(diag);
+	free(tmp);
+	return minv;
 }
 
 #define EPS 1E-6

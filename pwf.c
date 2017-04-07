@@ -5,19 +5,7 @@
 #include <math.h>	/* for sin, cos */
 #include "pwf.h"
 #include "msg.h"
-#include "mtx.h"	/* for Elm Size */
-
-int norm(double *v, int lim, double *max) {
-	int i, indx;
-
-	*max = indx = 0;
-	for (i = 0; i < lim; i++)	
-		if (*max < abs(v[i])) {
-			*max = abs(v[i]);
-			indx = i;
-		}
-	return indx;
-}
+#include "mtx.h"	/* for Elm Size & norm */
 
 struct nodechain *chainalloc(void) {
 	return malloc(sizeof(struct nodechain));
@@ -72,6 +60,10 @@ struct branch *all_branch[MAXBRANCH];	/* system branches buffer */
 void getsize(int *maxnd, int *maxbr) {
 	*maxnd = nnode;
 	*maxbr = nbranch;
+}
+
+int getnnode(void) {
+	return nnode;
 }
 
 struct node *addnode(void) {
@@ -303,10 +295,8 @@ struct comp b_flow(int dir, struct branch *pb) {
 }
 
 struct node *findnode(int no) {
-	static struct node **t = NULL;
+	struct node **t;
 
-	if (t != NULL && (*t)->no == no)
-		return *t;
 	loopnode(t) {
 		if ((*t)->no == no)
 			return *t;
@@ -369,34 +359,37 @@ int checknode(void) {
 	is max |V(r+1) - V(r)| , r is the no. of iteration . 
 	if error occured, return 0,  on success, return 1 */
 int gs(double *errf) {
-	struct comp v_temp, p_temp;
+	struct comp v_temp;
 	struct node *t;
+	double df, ang;
 	int i;
 
 	*errf = .0;
 	for (i=0; (t=getnode(i)) != NULL; i++) {
 		switch (t->type) {
 		case SLACK:	/* calc the complex power of slack node */
-			t->pw = node_pw(t);
+			node_pw(t);
 			continue;
 		case PQ:	/* calc new node voltage of PQ node */
 			v_temp = node_volt(t);
 			break;
 		case PV:
-			p_temp = node_pw(t);	/* calc net power P + jQ */
-			t->pw.y = p_temp.y;	/* update the Q */
-			v_temp = node_volt(t);
+			node_pw(t);	/* update node power P + jQ */
+			ang = angle(node_volt(t)); 
+			v_temp = makecomp(t->volt_ctl * cos(ang), /* update volt angle */
+				t->volt_ctl * sin(ang));
 			break;
 		default:
 			msg(stderr, 
 			"pwf: gauss: wrong node type %d\n", t->type);
-			return -1;
+			return 0;
 		}
-		if ((*errf) < compdif(v_temp, t->volt))	/* |Vi(r+1) - Vi(r)| */
-			*errf = compdif(v_temp, t->volt);
+		df = compdif(v_temp, t->volt); /* |Vi(r+1) - Vi(r)| */
+		if (*errf < df)	
+			*errf = df;
 		t->volt = v_temp;	/* update new volt */
 	}
-	return 0;
+	return 1;
 }
 
 static struct jacidx pwindex[MAXJAC];
@@ -412,12 +405,12 @@ void addpwindex(int i, struct node *t, int ltype, int rtype) {
 }
 
 /* return the Jacobian's J[i, j] elemet */
-double getjac(int i, int j) {
+int getjac(double *jelem, int i, int j) {
 	struct jacidx pi, pj;
 
 	pi = pwindex[i];
 	pj = pwindex[j];
-	return getsysinfo(pi.n, pj.n, jactype(pi.ltype, pj.rtype));
+	return getsysinfo(jelem, pi.n, pj.n, jactype(pi.ltype, pj.rtype));
 }
 
 /* calculate the Jacobian elements related to node t */
@@ -444,12 +437,35 @@ struct jacelm jachaincalc(struct node *t, struct nodechain *tnbr) {
 
 	vm = tnbr->n->volt;
 	yim = compinv(tnbr->b->adm_se);
-	dum = compmul(vm, yim);	/* Vm * Yim */
+	dum = compmul(vm, yim);	/* = Vm * Yim  = a + jb*/
 	tnbr->jelm.h = dum.x * vm.y - dum.y * vm.x;
 	tnbr->jelm.m = dum.x * vm.x + dum.y * vm.y;
 	tnbr->jelm.l = tnbr->jelm.h;
 	tnbr->jelm.n = -tnbr->jelm.m;
 	return tnbr->jelm;
+}
+
+void updatedf(double *errf, double **args) {
+	int i;
+	struct node *t;
+
+	for (i = 0; i < ndf; ) {
+		t = pwindex[i].n;
+		node_pw(t);
+		switch (t->type) {
+		case PQ:
+			dfbuf[i] = t->pw.x - t->pw_act.x;	/* dP = P(sch) - P */
+			dfbuf[i+1] = t->pw.y - t->pw_act.y;	/* dQ = Q(sch) - Q */
+			i += 2;
+			break;
+		case PV:
+			dfbuf[i] = t->pw.x - t->pw_act.x;	/* dP */
+			i++;
+			break;
+		}
+	}
+	*args = dfbuf;
+	norm(dfbuf, ndf, errf);
 }
 
 /* makeindex - create the system Jacobian's index pwindex, 
@@ -474,9 +490,9 @@ int makeindex(Elm *errf, Elm **arg) {
 	j = 0;
 	*errf = 0;
 	for (i=0; (t=getnode(i)) != NULL; ++i) {
+		node_pw(t);
 		if (t->type == SLACK)
 			continue;	/* skip slack bus */
-		node_pw(t);
 		/* both PQ and PV buses have index DP */
 		addpwindex(j, t, DP, DA);
 		dfbuf[j] = t->pw.x - t->pw_act.x;
@@ -733,10 +749,9 @@ void setnodeinfo(struct node *t, int name, ...) {
 	va_end(ap);
 }
 
-double getsysinfo(struct node *ti, struct node *tj, int name) {
+int getsysinfo(double *sen, struct node *ti, struct node *tj, int name) {
 	struct jacelm quad;
 	struct nodechain *ch;
-	static Elm sen;
 	struct comp cval;
 
 	if (ti->no == tj->no) {
@@ -750,46 +765,46 @@ double getsysinfo(struct node *ti, struct node *tj, int name) {
 
 	switch (name) {
 	case H:
-		sen = quad.h;
+		*sen = quad.h;
 		break;
 	case L:
-		sen = quad.l;
+		*sen = quad.l;
 		break;
 	case M:
-		sen = quad.m;
+		*sen = quad.m;
 		break;
 	case N:
-		sen = quad.n;
+		*sen = quad.n;
 		break;
 	case J1:
-		sen = quad.j1;
+		*sen = quad.j1;
 		break;
 	case J2:
-		sen = quad.j2;
+		*sen = quad.j2;
 		break;
 	case J3:
-		sen = quad.j3;
+		*sen = quad.j3;
 		break;
 	case J4:
-		sen = quad.j4;
+		*sen = quad.j4;
 		break;
 	case J5:
-		sen = quad.j5;
+		*sen = quad.j5;
 		break;
 	case J6:
-		sen = quad.j6;
+		*sen = quad.j6;
 		break;
 	case G:
-		sen = cval.x;
+		*sen = cval.x;
 		break;
 	case B:
-		sen = cval.y;
+		*sen = cval.y;
 		break;
 	default:
 		msg(stderr, "pwf: getsysinfo: wrong type %c\n", name);
 		return 0;
 	}
-	return sen;
+	return 1;
 }
 
 int nodecmp1(const void *t1, const void *t2) {

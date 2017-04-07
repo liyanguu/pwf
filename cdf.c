@@ -331,7 +331,7 @@ void branchcalc(struct branch *b) {
 		b->adm_se = b->adm_line;
 		b->adm_ish = b->adm_jsh = makecomp(.0, b->linechar/2.0);
 		break;
-	case FT:	/* fixed tap transformer */
+	case FT: case VT:	/* fixed & variable tap transformers */
 		adm = b->adm_line;
 		t = b->t;
 		b->adm_se = compmuls(adm, t); /* Tij * yij */
