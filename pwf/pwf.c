@@ -1,3 +1,8 @@
+/* filename: 	pwf.c
+   usage:	function definitions of the pwf library
+   changelog:
+   2017-4-19	review
+   */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,12 +29,12 @@ void chainfree(struct nodechain* p) {
 struct nodechain *addchain(struct nodechain *pc, struct node *pn, struct branch *pb) {
 	struct nodechain *p;
 
-	if ((p = chainalloc()) == NULL)
-		return NULL; 
-	p->n = pn;
-	p->b = pb;
-	p->pw_f = makecomp(.0, .0);
-	p->next = pc;
+	if ((p = chainalloc()) != NULL) {
+		p->n = pn;
+		p->b = pb;
+		p->pw_f = makecomp(.0, .0);
+		p->next = pc;
+	}
 	return p;
 }
 
@@ -71,10 +76,14 @@ struct node *addnode(void) {
 
 	if (nnode >= MAXNODE)
 		return NULL;
-	else if ((t=malloc(sizeof(*t))) == NULL)
+	else if ((t=nodealloc()) == NULL)
 		return NULL;
 	all_node[nnode++] = t;
 	return t;
+}
+
+struct node *nodealloc(void) {
+	return malloc(sizeof(struct node));
 }
 
 void nodefree(struct node *t) {
@@ -83,6 +92,10 @@ void nodefree(struct node *t) {
 		chainfree(t->nbr);
 		free(t);
 	}
+}
+
+struct branch *branchalloc(void) {
+	return malloc(sizeof (struct branch));
 }
 
 void branchfree(struct branch *b) {
@@ -95,7 +108,7 @@ struct branch *addbranch(void) {
 
 	if (nbranch >= MAXBRANCH)
 		return NULL;
-	else if ((b=malloc(sizeof(*b))) == NULL)
+	else if ((b=branchalloc()) == NULL)
 		return NULL;
 	all_branch[nbranch++] = b;
 	return b;
@@ -117,9 +130,11 @@ int newno(int no) {
 	struct node *t;
 	int i;
 
-	for (i=0; (t=getnode(i))!= NULL; i++)
-		if (t->no == no)
+	for (i=0; (t=getnode(i))!= NULL; i++) {
+		if (t->no == no) {
 			return i;
+		}
+	}
 	return -1;
 }
 
@@ -133,8 +148,7 @@ void printnode(void) {
 	loopnode(pt) {
 		t = *pt;
 		pw = node_pw(t);
-		printf("%s%9d %4d %10.4f%10.4f" "%10.4f%10.4f"
-			"%10.4f%10.4f\n", 
+		printf("%s%9d %4d %10.4f%10.4f" "%10.4f%10.4f" "%10.4f%10.4f\n", 
 			(t->flag & (OVER_VOLTLIM|UNDER_VOLTLIM)) ? "*" : " ",
 			t->no, 
 			t->type,
@@ -255,24 +269,26 @@ struct comp node_volt(struct node *t) {
 	return v_temp;
 }
 
-/* line_flow: calc each power flow of line terminated at the node pn, 
+/* line_flow: calc power flow for each line terminated at the node pn, 
 	return the total power flow */
 struct comp line_flow(struct node *pn) {
-	struct comp p_temp = makecomp(.0, .0);
+	struct comp p_temp;
 	struct nodechain *pc;
-
+ 
+ 	p_temp = makecomp(.0, .0);
 	for (pc = pn->nbr; pc != NULL; pc = pc->next) {
 		if (pc->b->inode->no == pn->no)	/* node at primary side */
 			pc->pw_f = b_flow(1, pc->b);
 		else
 			pc->pw_f = b_flow(2, pc->b);	
 		p_temp = compadd(pc->pw_f, p_temp);
-	}	
+	}
 	return p_temp;
 }
 
-/* b_flow: if dir = 1, return primary side line flow injection, 
-	if dir = 2, return secondary side injection of branch pb */
+/* b_flow: calculate branch power flow,
+if dir = 1, return line flow injection on the primary side , 
+if dir = 2, return line flow on the secondary side */
 struct comp b_flow(int dir, struct branch *pb) {
 	struct comp p_temp;
 	struct comp v1, v2, adm;
@@ -298,8 +314,9 @@ struct node *findnode(int no) {
 	struct node **t;
 
 	loopnode(t) {
-		if ((*t)->no == no)
+		if ((*t)->no == no) {
 			return *t;
+		}
 	}
 	return NULL;
 }
@@ -313,13 +330,18 @@ struct nodechain *findnbr(struct node *base, struct node *aim) {
 	return NULL;
 }
 
+/* checknode: check the node limits.
+for PV node, check its Q generation,
+for PQ node, check its voltage. 
+return the number of out-of-limit nodes */
 int checknode(void) {
 	double q_gen;
 	double vt;
 	Size i;
-	int outcntl = 0;
+	int outcntl;
 	struct node *t;
 
+	outcntl = 0;
 	for (i = 0; (t=getnode(i)) != NULL; i++) {
 		switch (t->type) {
 		case PV:
@@ -344,10 +366,11 @@ int checknode(void) {
 			break;
 		case PQ:
 			vt = compscale(t->volt);
-			if (vt > t->vt_max)
+			if (vt > t->vt_max) {
 				t->flag |= OVER_VOLTLIM;
-			else if (vt < t->vt_min)
+			} else if (vt < t->vt_min) {
 				t->flag |= UNDER_VOLTLIM;
+			}
 			break;
 		}
 	}
@@ -394,17 +417,18 @@ int gs(double *errf) {
 
 static struct jacidx pwindex[MAXJAC];
 static double dfbuf[MAXJAC];	/* differences of S(scheduled) & S(calced) */
-static int ndf;		/* # elems in dfbuf */
+static int ndf;		/* number of elems in dfbuf */
 
 void addpwindex(int i, struct node *t, int ltype, int rtype) {
-	if (i < 0 || i >= MAXJAC)
-		return;
-	pwindex[i].n = t;
-	pwindex[i].ltype = ltype;
-	pwindex[i].rtype = rtype;
+	if (i >= 0 && i < MAXJAC) {
+		pwindex[i].n = t;
+		pwindex[i].ltype = ltype;
+		pwindex[i].rtype = rtype;
+	}
 }
 
-/* return the Jacobian's J[i, j] elemet */
+/* getjac: calculate the Jacobian's element J[i, j].
+return 1 if the element is nonzero, 0 if the element is zero */
 int getjac(double *jelem, int i, int j) {
 	struct jacidx pi, pj;
 
@@ -413,7 +437,7 @@ int getjac(double *jelem, int i, int j) {
 	return getsysinfo(jelem, pi.n, pj.n, jactype(pi.ltype, pj.rtype));
 }
 
-/* calculate the Jacobian elements related to node t */
+/* jaccalc: calculate the Jacobian elements related to node t */
 struct jacelm jacalc(struct node *t) {
 	struct comp pw, vi, yii;
 	struct jacelm tmp;
@@ -431,7 +455,7 @@ struct jacelm jacalc(struct node *t) {
 	return t->jelm = tmp;
 }
 
-/* calculate the J elems related to node t & it's nbr */
+/* jachaincalc: calculate the J elems related to node t & its nbrs */
 struct jacelm jachaincalc(struct node *t, struct nodechain *tnbr) {
 	struct comp vm, yim, dum;
 
@@ -468,12 +492,12 @@ void updatedf(double *errf, double **args) {
 	norm(dfbuf, ndf, errf);
 }
 
-/* makeindex - create the system Jacobian's index pwindex, 
+/* makeindex: create the system Jacobian's index pwindex, 
  and put the mismach functions' left side values in dfbuf,
  and set the max error errf.
- return the # columns of the system Jacobian.
+ return the number of columns of the system Jacobian.
 
- the system matrix has the format:
+ the system matrix has format:
 
  left  jacobian   right
  pwid  matrix     pwid
@@ -507,7 +531,7 @@ int makeindex(Elm *errf, Elm **arg) {
 		}
 	}
 	*arg = dfbuf;
-	norm(dfbuf, j, errf);	/* maximum of dfbuf */
+	norm(dfbuf, j, errf);	/* errf = absolute maximum of dfbuf */
 	msg(stderr, "pwf: makeindex: %4d, %12.6f\n", j, *errf);
 	return ndf = j;
 }
@@ -608,8 +632,9 @@ Size recmakeindex(Elm *errf, Elm **arg) {
 	return j;
 }
 
-/* undateindex - update nodal voltages according to the dfbuf */
-void updateindex(void) {
+/* undateindex: update nodal voltages according to pwindex & dfbuf.
+errx is set to the absolute maximum of dfbuf. */
+void updateindex(double *errx) {
 	Size i;
 	struct node *t;
 	Elm da, dv, ang, amp;
@@ -646,6 +671,7 @@ void updateindex(void) {
 			break;
 		}
 	}
+	norm(dfbuf, ndf, errx);
 }
 
 int jactype(int ltype, int rtype) {
@@ -686,7 +712,7 @@ int jactype(int ltype, int rtype) {
 	}
 }
 
-/* update nodal power */
+/* updatenp: update the nodal power */
 void updatenp(void) {
 	int i;
 	struct node *t;
@@ -812,13 +838,13 @@ int nodecmp1(const void *t1, const void *t2) {
 		(*(struct node * const *)t2)->nconnect;
 }
 
-/* nodecmp2 - compare the nodes according to node no. */
+/* nodecmp2: compare the nodes according to node no. */
 int nodecmp2(const void *t1, const void *t2) {
 	return (*(struct node * const *)t1)->no -
 		(*(struct node * const *)t2)->no;
 }
 
-/* nodecmp3 - compare the nodes according to node types */
+/* nodecmp3: compare the nodes according to node types */
 int nodecmp3(const void *t1, const void *t2) {
 	int t1type, t2type;
 
@@ -838,11 +864,11 @@ int nodetype(int ntype) {
 		return 3;
 }
 
-/* reorder - sort the node list according to type
+/* reorder: sort the nodes according to some type.
  nodes:
 	all_node or pv_node or pq_node
  type:
-	NODELINES  based on connection lines of a node
+	NODELINES  based on # out lines of a node
 	NODENO	   based on node no
 */
 void reorder(struct node **nodes, int lim, int type) {
@@ -889,7 +915,7 @@ void pvpqsl(void) {
 	msg(stderr, "pwf: reorder: total = %d\n", nnode);
 }
 
-/* flat start of power flow with one cycle of GS iteration */
+/* flatstart: flat start of power flow calculation with one cycle of GS iteration */
 void flatstart(double *ef) {
 	struct node **t;
 	struct comp volt;
@@ -898,9 +924,9 @@ void flatstart(double *ef) {
 	pvpqsl();
 	volt = sl_node->volt;
 	ang = angle(volt);
-	looppq(t)	/* set PQ Nodes' voltages to Slack node's v*/
+	looppq(t)	/* set PQ Nodes' voltages to Slack node's voltage */
 		(*t)->volt = volt; 
-	looppv(t) 	/* set PV nodes' voltages to their controls */
+	looppv(t) 	/* set PV nodes' voltages to controled voltage */
 		setnodeinfo(*t, VOLT_ANG, (*t)->volt_ctl, ang);
 	gs(ef);	/* perform one cycle of G-S flow */
 }

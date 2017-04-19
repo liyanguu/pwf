@@ -1,11 +1,12 @@
-SRCS := main.c pwf.c cdf.c pf.c comp.c msg.c
+SRCS := $(wildcard *.c)
 OBJS := $(patsubst %.c, %.o, $(SRCS))
 DEPS := $(patsubst %.c, %.d, $(SRCS))
 CC = gcc
 LOADER = gfortran
 CFLAGS = -Wall -O3 
-CPPFLAGS = -Imtx
-LDFLAGS = -Lmtx
+MTX_PATH = ../mtx
+CPPFLAGS = -I$(MTX_PATH)
+LDFLAGS = -L$(MTX_PATH)
 LA_LIB = lapacke cblas lapack refblas tmglib
 KLU_LIB = klu csparse amd btf colamd 
 LIBS := mtx $(LA_LIB) $(KLU_LIB) m
@@ -17,7 +18,7 @@ pwf : $(OBJS) mtxlib
 	$(LOADER) -o $@ $(OBJS) $(LDFLAGS) $(addprefix -l, $(LIBS))
 
 mtxlib :
-	$(MAKE) -C mtx lib
+	$(MAKE) -C $(MTX_PATH) lib
 
 lib : libpwf.a
 

@@ -1,26 +1,29 @@
-/* pf.c - implementation of Newton-Raphson power flow */
-
+/* filename: 	pf.c 
+   usage:	function definitions of Newton-Raphson power flow 
+   changelog:
+   2017-4-19	review
+   */
 #include <stdio.h>
 #include <cs.h>
 #include <klu.h>
 #include "mtx.h"
 #include "pwf.h"
 
-/* makejac - create and / or update the Jacobian matrix */
+/* makejac: create and update the Jacobian matrix */
 cs *makejac(int dim) {
+	static cs *jac_trip = NULL;
 	int i, j;
 	double v;
-	static cs *jac_trip;
 
 	if (dim == 0) /* Reuse the OLD Jacobian */
 		return jac_trip;
-	else {	/* delete the old Jacobian matrix */
+	else {	/* delete and create the Jacobian matrix */
 		if (jac_trip != NULL) 
 			cs_spfree(jac_trip);
 		if ((jac_trip = cs_spalloc(dim, dim, dim, 1, 1))==NULL)
 			return NULL;
 	}
-
+	/* update the Jacobian */
 	for (i = 0; i < dim; i++) {
 		for (j = 0; j < dim; j++) {
 			if (getjac(&v, i, j))
@@ -61,13 +64,22 @@ void printjac(void) {
 /* static int *indx;  swap index of ludcmp & lubksb */
 
 /* nrpf: Newton-Raphson power flow
-	dfargs -  mismatch vetcor [DP, DQ] 
-	errf - max of args
-	errx - max of dA, dV or de , df
+	lim: interation limit
+	tol: tolerance
+	ischeck:
+		1  regulated load flow
+		0  unregulated load flow
    return values:
-	>= 0 - success
+	-1	error
+	<= lim	iteration convergent
+	> lim	iteration nonconvergent
 */
 int nrpf(int lim, double tol, int ischeck) {
+	/*
+	dfargs: mismatch vetcor [DP, DQ] 
+	errf: abs max of args
+	errx: abs max of dA, dV or de , df
+	*/
 	int i, dim;
 	double errf, errx;
 	double *dfargs;
@@ -81,16 +93,15 @@ int nrpf(int lim, double tol, int ischeck) {
 		if ((jacob = makejac(dim)) == NULL)
 			return -1;
 		jacsolve(jacob, dfargs);
-		norm(dfargs, myabs(dim), &errx);
+		updateindex(&errx);
 		if (errx <= tol)
-			return i;
-		updateindex();
+			break;
 		updatenp();
 		if (ischeck)
 			checknode();
 		dim = makeindex(&errf, &dfargs);	/* rebuild the index */
 		if (errf <= tol)
-			return i;
+			break;
 	}
 	return i;
 }
@@ -110,25 +121,18 @@ int gspf(int lim, double tol, int ischeck) {
 	return i;
 }
 
-/* pf: power flow calculations
-	lim - interation limit
-	tol - tolerance
+/* pf: main function for power flow calculations
 	method - 
 		'n' - polar Newton-Raphson
 		'r' - rectangular Newton-Raphson (not supported now)
 		'g' - Gauss-Seidal
-	ischeck -
-		1 - regulated load flow
-		0 - unregulated load flow
    return values:
-	<= lim - convergence
-	>  lim - none convergence
-	-1 - errors
+   	same as nrpf.
 */
 
 int pftype;
 
-int pf(int lim, double tol, char *method, int ischeck) {
+int pf(char *method, int lim, double tol, int ischeck) {
 	switch(*method) {
 	case 'n':
 		pftype = NR_POL;

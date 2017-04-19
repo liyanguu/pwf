@@ -118,6 +118,8 @@ void getsize(int*, int*);
 int getnnode(void);
 struct node *addnode(void);
 struct branch *addbranch(void);
+struct node *nodealloc(void);
+struct branch *branchalloc(void);
 void clear(void);
 void printnode(void);
 void printybus(void);
@@ -136,11 +138,11 @@ int getjac(double *val, int i, int j);
 int makeindex(double *ef, double **arg);
 void updatedf(double *ef, double **arg);
 int recmakeindex(double *ef, double **arg);
-void updateindex(void);
+void updateindex(double *ex);
 void updatenp(void);
 int checknode(void);
 
-int pf(int lim, double tol, char *method, int ischeck);
+int pf(char *method, int lim, double tol, int ischeck);
 void printjac(void);
 
 int trim(char *s);

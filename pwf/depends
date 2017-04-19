@@ -1,6 +1,5 @@
-main.o: main.c pwf.h comp.h msg.h
-pwf.o: pwf.c pwf.h comp.h msg.h mtx/mtx.h
-cdf.o: cdf.c pwf.h comp.h
-pf.o: pf.c mtx/mtx.h pwf.h comp.h
+pf.o: pf.c ../mtx/mtx.h pwf.h comp.h
 comp.o: comp.c comp.h
-msg.o: msg.c
+main.o: main.c pwf.h comp.h ../mtx/msg.h
+pwf.o: pwf.c pwf.h comp.h ../mtx/msg.h ../mtx/mtx.h
+cdf.o: cdf.c pwf.h comp.h
