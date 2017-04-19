@@ -18,7 +18,7 @@ pwf [-agrcnlyj] [-lim] [+tol] [-ooutfile] [infile...]
 -ofilename
 	set the output file to filename
 infile...
-	CDF data
+	CDF input files
 
 ## Description
 
