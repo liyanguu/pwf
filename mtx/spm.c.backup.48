@@ -1,0 +1,216 @@
+#include <stdio.h> 
+#include <stdlib.h>
+#include "spm.h"
+#include "msg.h"
+
+/* spalloc - allocate a sparse matrix structure */
+Spm spalloc(void) {
+	return (Spm) malloc(sizeof(struct spm_struct));
+}
+
+/* spelalloc - allocate a sparse element structure */
+spel spelalloc(void) {
+	return (spel) malloc(sizeof(struct spel_struct));
+}
+
+/* spcreat - create an empty sparse matrix */
+Spm spcreat(void) {
+	Spm sp;
+
+	if ((sp = spalloc()) != NULL) {
+		sp->elem = NULL;
+		sp->nnz = 0;
+	}
+	return sp;
+}
+
+int spadd(Spm s, Size i, Size j, Elm v) {
+	spel elem;
+
+	if ((elem = spelalloc()) == NULL)
+		return 0;
+	elem->rowno = i;
+	elem->colno = j;
+	elem->v = v;
+	elem->next = sp->elem->next;
+	sp->elem->next = elem;
+	++sp->nnz;
+	return 1;
+}
+
+/* sprow - return the pointer to the first none diagnal element */
+spel  sprow(Spm a, Size rowno) {
+	return validate(a, rowno, 0) ? a->val[rowno].nextcol : NULL;
+}
+
+/* sppos - get the none-diagnal element at position pos in row rowno */
+/* 	pos >= 1 */
+spel  sppos(Spm a, Size rowno, Size pos) { 
+	spel  p;
+
+	if (!validate(a, rowno, pos))
+		return NULL;
+	for (p = sprow(a, rowno); --pos > 0 && p != NULL; p=p->nextcol)
+		;
+	return p;
+}
+
+/* spfind - find and return the element a[rowno, colno] */
+spel  spfind(Spm a, Size rowno, Size colno) {
+	spel  p;
+
+	if (!validate(a, rowno, colno))
+		return NULL;
+	if (rowno == colno)
+		return &a->val[rowno];
+	for (p=sprow(a, rowno); p != NULL; p = p->nextcol)
+		if (p->colno == colno)
+			break;
+	return p;
+}
+
+/* spinsert - insert or update the element a[rowno, colno] */
+int spinsert(Spm a, Size rowno, Size colno, Elm v) {
+	spel  p;
+
+	if(!validate(a, rowno, colno) || v == 0)
+		return -1;
+	if ((p = spfind(a, rowno, colno)) != NULL)	
+		p->v = v;		/* if exists, replace it */
+	else {
+		p = spelalloc(1);	/* allocate a new elem */
+		p->colno = colno;
+		p->v = v;
+		p->nextcol = a->val[rowno].nextcol;
+		a->val[rowno].nextcol = p;
+		a->val[rowno].colno++;
+	}
+	return 0;
+}
+
+/* spremove - remove a none diagnal element (rowno, colno) */
+void spremove(Spm a, Size rowno, Size colno) {
+	spel  p, q;
+
+	if (!validate(a, rowno, colno) || colno == rowno)
+		return;
+	for (p = &a->val[rowno]; p->nextcol != NULL; p = p->nextcol)
+		if (p->nextcol->colno == colno) {
+			q = p->nextcol;
+			p->nextcol = q->nextcol;
+			msg(stderr, "spremove: deleting %d, %d\n", rowno,q->colno);
+			free(q);
+			a->val[rowno].colno--;
+			return;
+		}
+}
+
+/* spdeletrow - delete a row */
+void spdeletrow(spel  p) {
+	spel  q;
+
+	for ( ; p != NULL; p = q) {
+		q = p->nextcol;
+		free(p);
+	}
+}
+
+/* spdelet - delete a maritx */
+void spdelet(Spm a) {
+	Size i; 
+
+	if (a == NULL)
+		return;
+	for (i = 0; i < a->nrow; i++)
+		spdeletrow(sprow(a, i));	/* delete none-diagnals */ 
+	free(a->val);	/* delete diagnals */
+	free(a);	/* delete the structure */
+}
+
+void spprint(char *title, Spm a) {
+	spel  p;
+	Size i, j;
+
+	printf("%s =\n", title);
+	for (i=0; i < a->nrow; i++) {
+		for (j=0; j < a->ncol; j++) {
+			if (i == j)
+				printf("%10.6f ", a->val[i].v);
+			else if ((p = spfind(a, i, j)) != NULL)
+				printf("%10.6f ", p->v);
+			else
+				printf("%10.6f ", 0.);
+		}
+		printf("\n");
+	}
+	printf("\n");
+}
+
+void upper(Spm a, Elm *b) {
+	Size i, j, k, basecol;
+	spel  p, q;
+	Elm e;
+
+	for (i = 0; i < a->nrow-1; i++)
+		for (j = i+1; j < a->nrow; j++) {
+			if ((p=spfind(a, j, i)) == NULL)
+				continue;
+			e = p->v / a->val[i].v;
+			spremove(a, j, i);
+			for (k = 1; (p=sppos(a, i, k)) != NULL; k++) {
+				basecol = p->colno;
+				msg(stderr, "spm: upper: doing %d, %d\n", i, basecol);
+				if ((q=spfind(a, j, basecol)) != NULL)
+					q->v -= p->v * e; 
+				else
+					spinsert(a, j, basecol, -p->v * e);
+			}
+			msg(stderr, "spm: upper: \n");
+			b[j] -= b[i] * e;
+		}
+}
+
+void lower(Spm a, Elm *b) {
+	Size i, j;
+	Elm e;
+	spel p;
+
+	for (i = a->nrow-1; i > 0; i--) {
+		for (j = i-1; j >= 0; j--) {
+			if ((p=spfind(a, j, i)) == NULL)
+				continue;
+			e = p->v / a->val[i].v;
+			spremove(a, j, i);
+			b[j] -= b[i] * e;
+		}
+	}
+}
+
+void gauss_jordan(Spm a, Elm *b) {
+	Size i;
+
+	upper(a, b);
+	lower(a, b);
+	for (i=0; i < a->nrow; i++)
+		b[i] /= a->val[i].v;
+}
+
+void printv(Elm *b, Size n) {
+	while (n-- > 0)
+		printf("%10.6f ", *b++);
+	printf("\n");
+}
+
+void sptom(Spm sm, Mtx m) {
+	Size i, j;
+	spel  p;
+
+	for (i = 0; i < m->nrow; i++)
+		for (j = 0; j < m->ncol; j++)
+			if (i == j)
+				m->val[i][j] = sm->val[i].v;
+			else if ((p=spfind(sm, i, j)) == NULL)
+				m->val[i][j] = 0;
+			else
+				m->val[i][j] = p->v;
+}
