@@ -1,4 +1,4 @@
- 04/07/17 WHU LAB               100.0 2017 S IEEE 14 Bus Test Case FAULT 4 
+ 04/10/17 WHU LAB               100.0 2017 S IEEE 14 Bus Test Case FAULT 4 
 BUS DATA FOLLOWS                             14 ITEMS
    1 Bus 1     HV  1  1  0  1.021 -19.90      0.0       0.0     0.0     0.0     0.0  1.060     0.0     0.0     0.0     0.0    0
    2 Bus 2     HV  1  1  0  1.016 -19.51     21.7      12.7     0.0     0.0     0.0  1.045    50.0   -40.0     0.0     0.0    0
