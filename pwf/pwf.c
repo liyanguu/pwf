@@ -221,7 +221,7 @@ struct comp node_pw(struct node *t) {
 	return t->pw_act;
 }
 
-/* return the nodal active power injection P */
+/* return the nodal real power injection P */
 Elm node_p(struct node *t) {
 	Elm vi = compscale(t->volt);
 	Elm dan;
@@ -358,7 +358,7 @@ int checknode(void) {
 			}
 			t->flag |= PVTOPQ; 	/* PV to PQ */
 			t->type = PQ;
-			t->pw.y = q_gen - t->loadmvar/basemva; /* fixed Q */
+			t->pw.y = q_gen - t->loadmvar/basemva; /* make Q fixed */
 			t->volt = makecomp(1.0, .0);	/* flat start */
 			t->vt_min = .95;
 			t->vt_max = 1.1;

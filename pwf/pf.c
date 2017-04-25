@@ -88,19 +88,18 @@ int nrpf(int lim, double tol, int ischeck) {
 	flatstart(&errf);
 	if (errf <= tol)
 		return 0;
-	dim = makeindex(&errf, &dfargs);
 	for (i = 1; i <= lim; i++) {
+		dim = makeindex(&errf, &dfargs);
+		if (ischeck && checknode() > 0)
+			dim = makeindex(&errf, &dfargs);	/* rebuild the index */
+		if (errf <= tol)
+			break;
 		if ((jacob = makejac(dim)) == NULL)
 			return -1;
 		jacsolve(jacob, dfargs);
 		updateindex(&errx);
-		if (errx <= tol)
-			break;
 		updatenp();
-		if (ischeck)
-			checknode();
-		dim = makeindex(&errf, &dfargs);	/* rebuild the index */
-		if (errf <= tol)
+		if (errx <= tol)
 			break;
 	}
 	return i;
