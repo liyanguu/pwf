@@ -1,13 +1,17 @@
+/* main.c
+   main function of pwf
+   2017-4-25  review
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "pwf.h"
 #include "msg.h"
 
-#define DEFLIM 150
+#define DEFLIM 100
 #define DEFTOL 1e-3 
-#define ERR_NO_INPUT_FILE_NAME "错误：没有指定输出文件名\n"
-#define ERR_CANT_OPEN_FILE     "错误：无法打开输出文件 %s\n"
+#define ERR_NO_INPUT_FILE "错误：没有指定输出文件\n"
+#define ERR_CANT_OPEN_FILE     "错误：无法打开文件 %s\n"
 #define ERR_WRONG_OPT          "错误：无效选项 %c\n"
 
 FILE *ifp, *ofp;	/* load data input file and output file */
@@ -31,7 +35,9 @@ int getopt(char *);
 /* Gauss-Seidel / Newton power flow in IEEE common data format */
 int main(int argc, char *argv[]) {
 	char *progname = argv[0]; 
+	char **infileptr;
 	int c;
+	int nfile;
 
 	ofp = stdout;
 	lim = DEFLIM;
@@ -47,7 +53,7 @@ int main(int argc, char *argv[]) {
 				tol = DEFTOL;
 		} else if (c == '-') {
 			if (sscanf(&argv[0][1], "%d", &lim) != 1) {
-				if (getopt(*argv))
+				if (!getopt(*argv))
 					argc = 0;
 			} else if (lim < 1)
 				lim = DEFLIM;
@@ -58,18 +64,22 @@ int main(int argc, char *argv[]) {
 			"用法: %s [-agcnly] [-lim] [+tol] [-ooutfile] infile\n", progname); 
 		exit(1);
 	}
-	if (argc == 0)
+
+	nfile = argc;	/* processing the infiles */
+	infileptr = argv;
+	if (nfile == 0)
 		loadflow(stdin, ofp);
 	else 
-		while (argc-- > 0) {
-			if ((ifp = fopen(*argv, "r")) == NULL) {
+		while (nfile-- > 0) {
+			if ((ifp = fopen(*infileptr, "r")) == NULL) {
 				fprintf(stderr, 
-					"error: can't open %s\n", *argv);
+					ERR_CANT_OPEN_FILE, *argv);
 				exit(1);
 			}
+			fprintf(stderr, "%s\n-----------\n", *infileptr);
 			loadflow(ifp, ofp);
 			closecdf(ifp);
-			argv++;
+			infileptr++;
 		}
 	exit(0);
 }
@@ -116,17 +126,15 @@ void loadflow(FILE *ifp, FILE *ofp) {
 
 
 int getopt(char *p) {
-	while (*++p) {
-		switch(*p) {
+	int c;
+
+	while ((c = *++p) != '\0') {
+		switch(c) {
 		case 't':
 			print_test_msg = 1;
-			if (!strcmp(++p, "pwf"))
-				including("pwf");
-			else if (!strcmp(p, "mtx"))
-				including("mtx");
-			else
-				return 1;	/* unknown name */
-			return 0;
+			if (*++p)
+				including(p);
+			return 1;
 		case 's':
 			flag.use_sparse = 1;
 			break;
@@ -155,15 +163,17 @@ int getopt(char *p) {
 			flag.rect = 1;
 			break;
 		case 'o':
-			if ((ofp = fopen(++p, "w")) == NULL) {
-				fprintf(stderr, "error: 无法打开输出文件 %s\n", p);
+			if (*++p && (ofp = fopen(p, "w")) != NULL)
 				return 1;
-			} else
-				return 0;
+			if (*p == '\0')
+				fprintf(stderr, ERR_NO_INPUT_FILE);
+			else
+				fprintf(stderr, ERR_CANT_OPEN_FILE, p);
+			return 0; 	/* false */
 		default:
-			fprintf(stderr, ERR_WRONG_OPT, *p);
-			return 1;
+			fprintf(stderr, ERR_WRONG_OPT, c);
+			return 0;	/* false */
 		}
 	}
-	return 0;	/* success */
+	return 1;	/* success */
 }

@@ -1,3 +1,7 @@
+/* main.c
+ * minq 程序的主函数入口
+ * 2017-5-16
+ */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -81,7 +85,6 @@ int main(int argc, char **argv) {
 	}
 	progend(-1, "no solution\n");	
 }
-
 
 char *appendstr(char *base, char *append) {
 	char *dst;

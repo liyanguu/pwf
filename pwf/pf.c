@@ -2,6 +2,7 @@
    usage:	function definitions of Newton-Raphson power flow 
    changelog:
    2017-4-19	review
+   2017-5-13    
    */
 #include <stdio.h>
 #include <cs.h>
@@ -15,9 +16,9 @@ cs *makejac(int dim) {
 	int i, j;
 	double v;
 
-	if (dim == 0) /* Reuse the OLD Jacobian */
+	if (dim == 0 && jac_trip != NULL) /* Reuse the OLD Jacobian */
 		return jac_trip;
-	else {	/* delete and create the Jacobian matrix */
+	else {	/* delete and create the NEW Jacobian matrix */
 		if (jac_trip != NULL) 
 			cs_spfree(jac_trip);
 		if ((jac_trip = cs_spalloc(dim, dim, dim, 1, 1))==NULL)
@@ -90,15 +91,14 @@ int nrpf(int lim, double tol, int ischeck) {
 		return 0;
 	for (i = 1; i <= lim; i++) {
 		dim = makeindex(&errf, &dfargs);
-		if (ischeck && checknode() > 0)
-			dim = makeindex(&errf, &dfargs);	/* rebuild the index */
 		if (errf <= tol)
 			break;
 		if ((jacob = makejac(dim)) == NULL)
 			return -1;
 		jacsolve(jacob, dfargs);
 		updateindex(&errx);
-		updatenp();
+		if (ischeck && checknode() > 0) /* rebuild the index */
+		    	continue;
 		if (errx <= tol)
 			break;
 	}

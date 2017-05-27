@@ -1,78 +1,79 @@
-#MINQ SETTINGS
+# MINQ SETTINGS
 
-#dim - problem dimension
-dimension  6
-#alpha - iteration factor
-alpha   .6
+# dim - problem dimension
+dimension  9
+# alpha - iteration factor
+alpha   1
+
+# 节点控制信息
+node
+no	1
+vmin	1.007
+vmax	1.1
+qmax	.5
+theta	.95
+end
 
 node
 no	2
-
-#vmin - lower voltage limit
-vmin	1.1
-
-#vmax - upper voltage limit
-vmax	1.5
-
-#qmax - upper Var limit
+vmin	0.993
+vmax	1.1
 qmax	.5
-
-#theta - power factor
 theta	.95
 end
 
 node
 no	4
-
-#vmin - lower voltage limit
-vmin	1.1
-
-#vmax - upper voltage limit
-vmax	1.5
-
-#qmax - upper Var limit
+vmin	0.967
+vmax	1.1
 qmax	.5
-
-#theta - power factor
 theta	.95
 end
 
 node
 no	7
-
-#vmin - lower voltage limit
-vmin	1.1
-
-#vmax - upper voltage limit
-vmax	1.5
-
-#qmax - upper Var limit
+vmin	1.0089
+vmax	1.1
 qmax	.5
+theta	.95
+end
 
-#theta - power factor
+node
+no	8
+vmin	1.0355
+vmax	1.1
+qmax	.5
 theta	.95
 end
 
 node
 no	9
-vmin	1.1
-vmax	1.5
+vmin	1.0032
+vmax	1.1
 qmax	.5
 theta	.95
 end
 
 node
 no	10
-vmin	1.1
-vmax	1.5
+vmin	0.9985
+vmax	1.1
 qmax	.5
 theta	.95
 end
 
 node
 no	11
-vmin	1.1
-vmax	1.5
+vmin	1.004
+vmax	1.1
+qmax	.5
+theta	.95
+end
+
+node
+no	14
+vmin	0.9842
+vmax	1.1
 qmax	.5
 theta	.95
 end

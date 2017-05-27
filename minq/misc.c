@@ -1,4 +1,7 @@
-/* misc.c - minq auxiliary functions */
+/* 文件名：misc.c
+ * 包含：minq 程序的主要计算函数
+ * 2017-5-16  检查
+ */
 
 #include <stdio.h>
 #include <string.h>
@@ -58,43 +61,43 @@ void writevarout(void) {
 }
 
 void minq_start(char *casename, char *logname, char *dataname) {
-		int i;
+	int i;
 
-		if ((lffp = fopen(casename, "r")) == NULL)
-			progend(1, "error: minq_start: can't read load flow data %s\n", casename);
-		if ((logfp = fopen(logname, "w")) == NULL)  /* 打开 log 文件 */
-			progend(1, "error: minq_start: can't open log file %s\n", logname);
-		if ((setfp = fopen(dataname, "r")) == NULL) /* 打开设定数据文件*/
-			progend(1, "error: minq_start: can't open data file %s\n", dataname);
-		if (!readdata(setfp))
-			progend(1, "error: minq_start: can't read data file %s\n", dataname);
-		if ((lpsolve = open_lpsolve_lib(LP_LIB)) == NULL)
-			progend(3, "error: minq_start: can't open shared library %s\n", LP_LIB);
-		if (!init_lpsolve(lpsolve))
-			progend(3, "error: minq_start: can't init the lpsolve library\n");
+	if ((lffp = fopen(casename, "r")) == NULL)
+		progend(1, "error: minq_start: can't read load flow data %s\n", casename);
+	if ((logfp = fopen(logname, "w")) == NULL)  /* 打开 log 文件 */
+		progend(1, "error: minq_start: can't open log file %s\n", logname);
+	if ((setfp = fopen(dataname, "r")) == NULL) /* 打开设定数据文件*/
+		progend(1, "error: minq_start: can't open data file %s\n", dataname);
+	if (!readdata(setfp))
+		progend(1, "error: minq_start: can't read data file %s\n", dataname);
+	if ((lpsolve = open_lpsolve_lib(LP_LIB)) == NULL)
+		progend(3, "error: minq_start: can't open shared library %s\n", LP_LIB);
+	if (!init_lpsolve(lpsolve))
+		progend(3, "error: minq_start: can't init the lpsolve library\n");
 
-		writelog("minq settings:\n");
-		writelog("#Buses\t%d\n", dim);
-		writelog("alpha\t%10.4f\n", alp);
-		writelog("Busno\t");
-		for (i = 0; i < dim; ++i)
-			writelog("%10d ", busno[i]+1);
-		writelog("\n");
-		writelog("Vmin\t");
-		writearray(vmin, dim);
-		writelog("Vmax\t");
-		writearray(vmax, dim);
-		writelog("Qmax\t");
-		writearray(qmax, dim);
-		readcdf(lffp);
-		minq_lf();
-		writelog("start of linear programming\n\n");
+	writelog("minq settings:\n");
+	writelog("#Buses\t%d\n", dim);
+	writelog("alpha\t%10.4f\n", alp);
+	writelog("Busno\t");
+	for (i = 0; i < dim; ++i)
+		writelog("%10d ", busno[i]+1);
+	writelog("\n");
+	writelog("Vmin\t");
+	writearray(vmin, dim);
+	writelog("Vmax\t");
+	writearray(vmax, dim);
+	writelog("Qmax\t");
+	writearray(qmax, dim);
+	readcdf(lffp);
+	minq_lf();
+	writelog("start of linear programming\n\n");
 }
 
 int minq_lf(void) {
 	int it;
 
-	if ((it = pf(LIMT, TOLR, "n", 0)) < 0) {
+	if ((it = pf("n", LIMT, TOLR, 0)) < 0) {
 		writelog("load flow error\n");
 		return 0;
 	}
@@ -122,7 +125,7 @@ Mtx sysmatrix(void) {
 		return NULL;
 	}
 	if ((nbus = getnnode()) == 0) {
-		writelog("error: sysmatrix: no load flow result\n");
+		writelog("error: sysmatrix: no load flow data\n");
 		return NULL;
 	}
 	fprintf(fp, "B part of Ybus:\n");
@@ -157,54 +160,59 @@ Mtx sysmatrix(void) {
 }
 
 Mtx minq_cnst(void) {
-		Mtx b;
-		Mtx invb;
+	Mtx b;
+	Mtx invb;
 
-		if ((b = sysmatrix()) == NULL) 
-			progend(3, "error: minq_cnst: can't get the matrix\n");
-		fmtxprt(logfp, "L", b);
-		invb = mtxinv(b);
-		if (invb == NULL)
-			progend(3, "error: minq_cnst: matrix singular\n");
-		fmtxprt(logfp, "inverse", invb);
-		mtxfree(b);
-		return invb;
+	if ((b = sysmatrix()) == NULL) 
+		progend(3, "error: minq_cnst: can't get the matrix\n");
+	fmtxprt(logfp, "L", b);
+	invb = mtxinv(b);
+	if (invb == NULL)
+		progend(3, "error: minq_cnst: matrix singular\n");
+	fmtxprt(logfp, "inverse", invb);
+	mtxfree(b);
+	return invb;
 }
 
 void lpmsg(lprec *lp, void *userhandle, int msg) {
 	writelog("lpmsg: lp msg func called\n");
 }
 
-/* minq_makelp - 利用输入矩阵cnst（X 阵）建立LP模型 */
+/* minq_makelp - 利用输入矩阵cnst（X 阵或 L-1 阵）建立LP模型 */
 void minq_makelp(Mtx cnst) {
-		int i;
+	int i;
 
-		if ((lp = make_lp(0, dim)) == NULL)/* 建立 LP 模型 */
-			progend(3, "error: minq_makelp: can't create new LP model\n");
-		set_add_rowmode(lp, TRUE);
-		for (i=1; i <= dim; i++)
-			cost[i] = 1.0;
-		if (!set_obj_fnex(lp, dim, cost, NULL))	/* 设置线性模型目标函数 */
-			progend(3, "error: minq_makelp: can't set object function\n");
-		for (i=0; i < dim; i++) {
-			set_upbo(lp, i+1, qmax[i]);
-			if (!selectrow(cnst, busno[i], &cm[1], dim, busno))
-				progend(1, "error: minq_makelp: %d busno index wrong\n", busno[i]);
-			if (!add_constraint(lp, cm, LE, 0))	/* 添加线性模型约束 */
-				progend(1, "error: minq_makelp: can't add %dth constraint\n", i);
-		}
-		set_add_rowmode(lp, FALSE);
+	if ((lp = make_lp(0, dim)) == NULL)/* 建立 LP 模型 */
+		progend(3, "error: minq_makelp: can't create new LP model\n");
+	set_add_rowmode(lp, TRUE);
+	for (i=1; i <= dim; i++)
+		cost[i] = 1.0;
+	if (!set_obj_fnex(lp, dim, cost, NULL))	/* 设置线性模型目标函数 */
+		progend(3, "error: minq_makelp: can't set object function\n");
+	for (i=0; i < dim; i++) {
+	    	set_lowbo(lp, i+1, 0.01); /* 置节点最小无功出力为 0.01 p.u */
+		set_upbo(lp, i+1, qmax[i]);
+		if (!selectrow(cnst, busno[i], &cm[1], dim, busno))
+			progend(1, "error: minq_makelp: %d busno index wrong\n", busno[i]);
+		if (!add_constraint(lp, cm, LE, 0))	/* 添加线性模型约束 */
+			progend(1, "error: minq_makelp: can't add %dth constraint\n", i);
+	}
+	set_add_rowmode(lp, FALSE);
+	set_timeout(lp, 1);  /* in 1 second */
+	set_verbose(lp, 2);
+	put_msgfunc(lp, lpmsg, NULL, 
+		MSG_PRESOLVE | MSG_LPOPTIMAL | MSG_LPFEASIBLE );
 }
 
 double voltdiff(void) {
 	int i;
-	double rhs;
+	double max, rhs;
 
-	maxdiff = 0;
+	max = 0;
 	for (i = 0; i < dim; i++) {
 		vdiff[i] = vmin[i] - vac[i];	/* 计算电压偏差 */
-		if (maxdiff < ABS(vdiff[i]))    
-			maxdiff = ABS(vdiff[i]);
+		if (max < ABS(vdiff[i]))    
+			max = ABS(vdiff[i]);
 		vcormin[i] += alp * vdiff[i];	/* 初始化/修正电压补偿量 */
 		vcormax[i] = vmax[i] - vac[i];	/* 电压补偿量的上限 */
 		rhs = vcormin[i];
@@ -212,20 +220,17 @@ double voltdiff(void) {
 			writelog("warning: voltage of bus[%d] over limit\n", busno[i]+1);
 		set_rh(lp, i+1, -rhs);	/* 修改线性模型的RHS */
 	}
-	return maxdiff;
+	return max;
 }
 
 int minq_solve(double eps) {
 	double *s;
 
-	if (voltdiff() <= eps)
+	maxdiff = voltdiff();
+	if (maxdiff <= eps)
 		return 1;			/* no linear programming needed */
 	write_lp(lp, "minq.lp");          /* 输出线性模型 */
 
-	set_timeout(lp, 1);  /* in 1 second */
-	set_verbose(lp, 2);
-	put_msgfunc(lp, lpmsg, NULL, 
-		MSG_LPFEASIBLE | MSG_MILPFEASIBLE | MSG_MILPBETTER);
 	switch (solve(lp)) {
 	case 0:
 		get_ptr_primal_solution(lp, &s);
@@ -354,9 +359,7 @@ int readdata(FILE *fp) {
 		} else
 			return 0;
 	}
-	if (dim <= 0 || alp <= 0)
-		return 0;
-	return 1;
+	return (dim <= 0 || alp <= 0) ? 0 : 1;
 }
 
 int scannode(FILE *fp) {
@@ -382,7 +385,7 @@ int scannode(FILE *fp) {
 			nodeno++;
 			return 1;
 		} else {
-			fprintf(stderr, "unkown name: %s\n", name);
+			fprintf(stderr, "unkown field name: %s\n", name);
 			break;
 		}
 	}

@@ -12,16 +12,14 @@
 #define myabs(x) ((x) < 0 ? -(x) : (x))
 #define fixzero(x) (((x) <= 1e-8 && (x) >= -1e-8) ? 0. : (x))
 #define reducerad(x) (((x) >= 2*PI) ? fmod(x, 2*PI) : (x))
-#define loopnode(t) for (t=all_node; t - all_node < nnode; t++)
 #define looppv(t) for (t=pv_node; t - pv_node < npvnode; t++)
 #define looppq(t) for (t=pq_node; t - pq_node < npqnode; t++)
-#define loopbranch(b) for (b=all_branch; b - all_branch < nbranch; b++)
 #define getnode(i) (((i) >= 0 && (i) < nnode) ? all_node[(i)] : NULL)
 #define getbranch(i) (((i) >= 0 && (i) < nbranch) ? all_branch[(i)] : NULL)
 
 enum cdf_type { TITLE, BUS, BRANCH, END, EOD };
 /* node_type & branch_type: 
-	IEEE Common Format Specification */
+	from IEEE Common Format Specification */
 enum node_type { PQ = 0, MVARPQ = 1, PV = 2, SLACK = 3 };
 enum branch_type { AC, FT, VT, VTMVAR, VPA }; 
 enum node_error_flag { 
@@ -33,9 +31,10 @@ enum node_error_flag {
 };
 enum index_type { DP, DQ, DV, DA, DPR, DQR, DVS, DVE, DVF, 
 	H, L, M, N , J1, J2, J3 , J4, J5, J6 };
-enum node_info_type { G, B, QGEN, QGENINC, VOLT, VOLTINC, ANG, ANGINC, VOLT_ANG };
+enum node_info_type { G, B, PGEN, QGEN, QGENINC, VOLT, VOLTINC, ANG, ANGINC, VOLT_ANG };
 enum order_type { NODELINES, NODENO, NODETYPE };
 enum powerflow_type { GS, NR_POL, NR_REC };
+enum direction { SEND, RECEIV };
 
 extern double basemva;
 extern int nnode;	/* number of system nodes */
@@ -61,13 +60,13 @@ struct node {
 	int nconnect;
 	char *name;
 	double basekv;
-	double loadmw, loadmvar;
+	double pload, qload;	/* 有功、无功负荷 (p.u.) */
 	struct comp pw;		/* scheduled power p.u. = Pg-Pd + j(Qg-Qd)*/
 	struct comp pw_act;	/* actual calculated power p.u. */
 	struct comp volt;	/* initial nodal voltage p.u. */
 	struct comp adm_sh;	/* shunt G, B in p.u. */ 
-	struct nodechain *nbr;
 	struct comp adm_self;	/* nodal self amditance */ 
+	struct nodechain *nbr;
 	double q_max, q_min;	/* reactive generation limits for PV node p.u.*/ 
 	double vg_max, vg_min;	/* voltage limits for PV nodes p.u. */
 	double volt_ctl;	/* control voltage for PV node p.u. */
@@ -85,6 +84,7 @@ struct branch {
 	double t;		/* transformer final tap ratio  */ 
 	struct comp adm_line;	/* normal (line) adm of a transformer */
 	struct comp adm_se;	/* branch series admitance of pi circuit */
+	struct comp adm_mut;	/* mutual admitance  = -adm_se */
 	struct comp adm_ish;	/* tap side shunt adm of pi circuit */
 	struct comp adm_jsh;	/* z side shunt adm of pi circuit*/
 };
@@ -105,7 +105,8 @@ struct jacidx {
 
 void ycalc(void);
 struct comp node_pw(struct node *);
-struct comp line_flow(struct node *pn);
+struct comp checknodepw(struct node *);
+struct comp line_flow(struct node *);
 struct comp b_flow(int, struct branch *);
 int gs(double *errf);
 struct nodechain *chainalloc(void);
@@ -120,6 +121,10 @@ struct node *addnode(void);
 struct branch *addbranch(void);
 struct node *nodealloc(void);
 struct branch *branchalloc(void);
+void loopnode(void);
+struct node *nextnode(void);
+void loopbranch(void);
+struct branch *nextbranch(void);
 void clear(void);
 void printnode(void);
 void printybus(void);
@@ -131,31 +136,33 @@ int nodetype(int ntype);
 void reorder(struct node **nodes, int lim, int type);
 void pvpqsl(void);
 void flatstart(double *ef);
-struct jacelm jacalc(struct node *);
-struct jacelm jachaincalc(struct node *, struct nodechain *);
 int jactype(int ltype, int rtype);
 int getjac(double *val, int i, int j);
+struct jacelm jacalc(struct node *);
+struct jacelm jachaincalc(struct node *, struct nodechain *);
+void recjacalc(struct node *);
+void updatejac(struct node *);
 int makeindex(double *ef, double **arg);
-void updatedf(double *ef, double **arg);
+int polmakeindex(double *ef, double **arg);
 int recmakeindex(double *ef, double **arg);
 void updateindex(double *ex);
-void updatenp(void);
 int checknode(void);
 
 int pf(char *method, int lim, double tol, int ischeck);
 void printjac(void);
 
 int trim(char *s);
-int titlescan(void);
-int titlewrite(void);
-int busscan(void);
-int branchscan(void);
-int writebus(struct node *t);
-int writebranch(struct branch *b);
+int titlescan(char *buf);
+int busscan(char *buf);
+int branchscan(char *buf);
+void writetitle(char *buf);
+void writebus(char *buf, struct node *pn);
+void writebranch(char *buf, struct branch *pb);
 struct node *makenode(struct node *);
 struct branch* makebranch(struct branch *);
-void nodecalc(struct node *);
-void branchcalc(struct branch *);
+struct comp nodecalc(struct node *);
+struct comp branchcalc(struct branch *);
+void nodebranch(struct node *, struct branch *);
 void closecdf(FILE *fp);
 int readcdf(FILE *fp);
 int writecdf(FILE *fp);
