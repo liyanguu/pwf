@@ -121,7 +121,7 @@ void loadflow(FILE *ifp, FILE *ofp) {
 		printnode();
 	if (flag.print_jac == 1)
 		printjac();
-	clear();
+	pfclear();
 }
 
 

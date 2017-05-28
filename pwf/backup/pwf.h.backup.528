@@ -18,11 +18,15 @@
 #define myabs(x) ((x) < 0 ? -(x) : (x))
 #define fixzero(x) (((x) <= 1e-8 && (x) >= -1e-8) ? 0. : (x))
 #define reducerad(x) (((x) >= 2*PI) ? fmod(x, 2*PI) : (x))
+#define looppv(t) for (t=pv_node; t - pv_node < npvnode; t++)
+#define looppq(t) for (t=pq_node; t - pq_node < npqnode; t++)
+#define getnode(i) (((i) >= 0 && (i) < nnode) ? all_node[(i)] : NULL)
+#define getbranch(i) (((i) >= 0 && (i) < nbranch) ? all_branch[(i)] : NULL)
 
 enum cdf_type { TITLE, BUS, BRANCH, END, EOD };
 /* node_type & branch_type: 
 	from IEEE Common Format Specification */
-enum node_type { PQ = 0, MVARPQ = 1, PV = 2, SLACK = 3, ALL };
+enum node_type { PQ = 0, MVARPQ = 1, PV = 2, SLACK = 3 };
 enum branch_type { AC, FT, VT, VTMVAR, VPA }; 
 enum node_error_flag { 
 	OVER_VOLTLIM  =	   01,
@@ -96,43 +100,39 @@ struct jacidx {
 	int rtype;
 };
 
-struct nodechain *chainalloc(void);
-void nodechainfree(struct nodechain* p);
-struct nodechain *addchain(struct nodechain *pc, struct node *pn, struct branch *pb);
-struct nodechain *invchain(struct nodechain *h);
-struct node *addnode(void);
-struct branch *addbranch(void);
-struct node *nodealloc(void);
-struct branch *branchalloc(void);
-void nodefree(struct node *);
-void branchfree(struct branch *);
-
-void getsize(int*, int*);
-int getnnode(void);
-struct node *getnode(int nodeno);
-struct branch *getbranch(int branchno);
-void loopnode(int);
-struct node *nextnode(void);
-void loopbranch(void);
-struct branch *nextbranch(void);
-void pfclear(void);
-void pvpqsl(void);
-void flatstart(double *ef);
-
 void ycalc(void);
 struct comp node_pw(struct node *);
 struct comp checknodepw(struct node *);
 struct comp line_flow(struct node *);
 struct comp b_flow(int, struct branch *);
 int gs(double *errf);
+struct nodechain *chainalloc(void);
+void nodechainfree(struct nodechain* p);
+struct nodechain *addchain(struct nodechain *pc, struct node *pn, struct branch *pb);
+struct nodechain *invchain(struct nodechain *h);
 struct node *findnode(int no);
 struct nodechain *findnbr(struct node *, struct node *);
+void getsize(int*, int*);
+int getnnode(void);
+struct node *addnode(void);
+struct branch *addbranch(void);
+struct node *nodealloc(void);
+struct branch *branchalloc(void);
+void loopnode(void);
+struct node *nextnode(void);
+void loopbranch(void);
+struct branch *nextbranch(void);
+void pfclear(void);
 void printnode(void);
 void printybus(void);
 void printlinef(void);
 void setnodeinfo(struct node *t, int name, ...);
 double getnodeinfo(struct node *t, int name);
 int getsysinfo(double *val, struct node *ti, struct node *tj, int name);
+int nodetype(int ntype);
+void reorder(struct node **nodes, int lim, int type);
+void pvpqsl(void);
+void flatstart(double *ef);
 int jactype(int ltype, int rtype);
 int getjac(double *val, int i, int j);
 struct jacelm jacalc(struct node *);

@@ -7,8 +7,8 @@
 #include <stdio.h>
 #include <cs.h>
 #include <klu.h>
-#include "mtx.h"
 #include "pwf.h"
+#include "wrapper.h"
 
 /* makejac: create and update the Jacobian matrix */
 cs *makejac(int dim) {
@@ -36,9 +36,6 @@ cs *makejac(int dim) {
 
 int jacsolve(cs *matrix, double *arg) {
 	cs *tmp;
-	klu_common   comm;
-	klu_symbolic *symb;
-	klu_numeric  *nume;
 	int n, *ap, *ai; 
 	double *ax;
 	int solstat;
@@ -48,12 +45,10 @@ int jacsolve(cs *matrix, double *arg) {
 	ap = tmp->p;
 	ai = tmp->i;
 	ax = tmp->x;
-	klu_defaults(&comm);
-	symb = klu_analyze(n, ap, ai, &comm);
-	nume = klu_factor(ap, ai, ax, symb, &comm);	
-	solstat = klu_solve(symb, nume, n, 1, arg, &comm);
-	klu_free_symbolic(&symb, &comm);
-	klu_free_numeric(&nume, &comm);
+	wr_klu_defaults();
+	wr_klu_analyze(n, ap, ai);
+	wr_klu_factor(ap, ai, ax);
+	solstat = wr_klu_solve(n, 1, arg);
 	return solstat;
 }
 

@@ -1,0 +1,38 @@
+pwf 潮流计算程序
+
+用途
+pwf (PoWer Flow) 为简单电力系统潮流计算程序，采用牛顿-拉夫逊算法与稀疏矩阵算法。
+
+程序用法
+pwf [-agcnlyj] [-lim] [+tol] [-ooutfile] [infile...]
+-a	进行带约束的潮流计算
+-g	使用高斯法进行计算
+-c	以CDF格式输出
+-n, l, y, j	分别为输出节点电压信息、
+	线路潮流信息、节点导纳矩阵与雅可比矩阵
+-lim	设置迭代上限为 lim 次
++tol	设置计算容差为 tol
+-o	设置输出文件
+infile ...	设置输入文件（可以有多个）
+
+如果没有指定输入和（或）输出，程序默认从 stdin 读取信息，将结果输出到 stdout。
+默认计算容差 0.001, 迭代上限 100次，以牛拉法进行计算。
+
+本目录的文件包括
+pwf.h -  包含 pwf 中使用的结构体、宏与常量的定义，以及所有的函数原型。
+cdf.c - 包含处理 CDF 文件格式的函数，提供潮流数据的输入输出功能。关于CDF文件的格式说明，参见 res/cdfformat.txt
+pwf.c - 包含基本的电力系统计算函数，如求取节点的电压、功率等，以及一些常用的工具函数。
+pf.c - 包含高斯、牛拉法潮流计算函数的实现。
+comp.h, comp.c - 包含处理复数运算的函数。
+Makefile - 编译 pwf 主程序，并生成库文件 libpwf.a
+res/  - 包含潮流计算数据等文件
+
+例子
+./pwf res/ieee14
+计算 res/ieee14 （IEEE 14节点）潮流
+
+./pwf -c -ores/ieee14.res res/ieee14
+计算 res/ieee14 ，并输出结果到 res/ieee14.res 文件
+
+其它
+目前的开发位于 https://github.com/liyanguu/pwf/tree/sparse.

@@ -1,0 +1,7 @@
+wrapper.o: wrapper.c wrapper.h
+pf.o: pf.c pwf.h comp.h ../mtx/msg.h ../mtx/mtx.h wrapper.h
+comp.o: comp.c comp.h
+memmange.o: memmange.c pwf.h comp.h ../mtx/msg.h ../mtx/mtx.h
+pwf.o: pwf.c pwf.h comp.h ../mtx/msg.h ../mtx/mtx.h
+main.o: main.c pwf.h comp.h ../mtx/msg.h ../mtx/mtx.h
+cdf.o: cdf.c pwf.h comp.h ../mtx/msg.h ../mtx/mtx.h

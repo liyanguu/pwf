@@ -1,63 +1,93 @@
-/* 文件名：pwf.c
- * 描述：辅助潮流计算的基本计算函数
+/* filename: pwf.c - function definitions of the pwf library
+ * 文件名：pwf.c
+   usage:
    用法：include "pwf.h"
+   changelog:
    更改记录：
-   2017-4-19	检查
-   2017-5-11	检查
-   2017-5-13~14 修正部分函数
-   2017-5-28	修正
-*/
-
+   2017-4-19	review 检查
+   2017-5-11	review 检查
+   */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdarg.h>
+#include <math.h>	/* for sin, cos */
 #include "pwf.h"
+#include "msg.h"
+#include "mtx.h"	/* for Elm Size & norm */
 
-double basemva;
-static int nnode;	/* number of system nodes */
-static int npvnode;	/* number of PV nodes */
-static int npqnode; 	/* number of PQ nodes */
-static int nbranch;	/* number of system branches */
-static struct node *all_node[MAXNODE];		/* system nodes buffer */
-static struct node *pv_node[MAXNODE];		/* PV nodes buffer */
-static struct node *pq_node[MAXNODE];		/* PQ nodes buffer */
-static struct node *sl_node;			/* slack node ptr */
-static struct branch *all_branch[MAXBRANCH];	/* system branches buffer */
-
-static int nodei;
-static int nodetype;
-
-void loopnode(int type) {
-    	nodei = 0;
-	nodetype = type;
+struct nodechain *chainalloc(void) {
+	return malloc(sizeof(struct nodechain));
 }
 
-struct node *nextnode(void) {
-    	switch (nodetype) {
-	case ALL:
-    		return getnode(nodei++);
-	case PQ:
-    		return (nodei < 0 || nodei >= npqnode) ? NULL : pq_node[nodei++];
-	case PV:
-    		return (nodei < 0 || nodei >= npvnode) ? NULL : pv_node[nodei++];
-	default:
-		return NULL;
+void chainfree(struct nodechain* p) {
+	struct nodechain *q;
+
+	for ( ; p != NULL; p = q) {
+		q = p->next;
+		free(p);
 	}
 }
 
-struct node *getnode(int i) {
-    	return (i < 0 || i >= nnode) ? NULL : all_node[i];
+/* addchain: add a member to chain pc, with node pn, branch pb */
+struct nodechain *addchain(struct nodechain *pc, struct node *pn, struct branch *pb) {
+	struct nodechain *p;
+
+	if ((p = chainalloc()) != NULL) {
+		p->n = pn;
+		p->b = pb;
+		p->pw_f = makecomp(.0, .0);
+		p->next = pc;
+	}
+	return p;
 }
 
-static int bi;
+/* invchain: inverse a nodechain */
+struct nodechain *invchain(struct nodechain *h) {
+	struct nodechain *prev, *p;
+
+	if (h == NULL)
+		return NULL;
+	for (prev = h; (p = h->next) != NULL; prev = p) {
+		h->next = p->next;
+		p->next = prev;
+	}
+	return prev;
+}
+
+double basemva;
+int nnode;	/* number of system nodes */
+int npvnode;	/* number of PV nodes */
+int npqnode; 	/* number of PQ nodes */
+int nbranch;	/* number of system branches */
+struct node *all_node[MAXNODE];		/* system nodes buffer */
+struct node *pv_node[MAXNODE];		/* PV nodes buffer */
+struct node *pq_node[MAXNODE];		/* PQ nodes buffer */
+struct node *sl_node;			/* slack node ptr */
+struct branch *all_branch[MAXBRANCH];	/* system branches buffer */
+
+static int nodeind;
+
+void loopnode(void) {
+    	nodeind = 0;
+}
+
+struct node *nextnode(void) {
+    	if (nodeind < 0 || nodeind >= nnode)
+	    return NULL;
+	return all_node[nodeind++];
+}
+
+static int branchind;
 
 void loopbranch(void) {
-    	bi = 0;
+    	branchind = 0;
 }
 
 struct branch *nextbranch(void) {
-	return getbranch(bi++);
-}
-
-struct branch *getbranch(int i) {
-    	return (i < 0 || i >= nbranch) ? NULL : all_branch[i];
+    	if (branchind < 0 || branchind >= nbranch)
+	    return NULL;
+	return all_branch[branchind++];
 }
 
 void getsize(int *maxnd, int *maxbr) {
@@ -69,17 +99,38 @@ int getnnode(void) {
 	return nnode;
 }
 
-/* addnode: 向系统加入一个新节点 */
 struct node *addnode(void) {
 	struct node *t;
 
-	if (nnode >= MAXNODE 
-	|| (t=nodealloc()) == NULL)
+	if (nnode >= MAXNODE)
 		return NULL;
-	return all_node[nnode++] = t;
+	else if ((t=nodealloc()) == NULL)
+		return NULL;
+	all_node[nnode++] = t;
+	return t;
 }
 
-/* addbranch: 向系统加入一条新支路，并返回所加支路 */
+struct node *nodealloc(void) {
+	return malloc(sizeof(struct node));
+}
+
+void nodefree(struct node *t) {
+	if (t != NULL) {
+		free(t->name);
+		chainfree(t->nbr);
+		free(t);
+	}
+}
+
+struct branch *branchalloc(void) {
+	return malloc(sizeof (struct branch));
+}
+
+void branchfree(struct branch *b) {
+	if (b != NULL)
+		free(b);
+}
+
 struct branch *addbranch(void) {
 	struct branch *b;
 
@@ -91,34 +142,39 @@ struct branch *addbranch(void) {
 	return b;
 }
 
-void pfclear(void) {
+void clear(void) {
 	struct node *pn;
 	struct branch *pb;
 
-	for (loopnode(ALL); (pn = nextnode()) != NULL; nodefree(pn))
-	    	;
-	for (loopbranch(); (pb = nextbranch()) != NULL; branchfree(pb))
-	    	;
+	for (loopnode(); (pn = nextnode())!=NULL; )
+		nodefree(pn);
+	for (loopbranch(); (pb = nextbranch()) != NULL; )
+		branchfree(pb);
 	nnode = 0;
 	nbranch = 0;
+}
+
+int newno(int no) {
+	struct node *t;
+	int i;
+
+	for (i=0; (t=getnode(i))!= NULL; i++) {
+		if (t->no == no) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 void printnode(void) {
 	struct node *pn;
 	struct comp pw;
-	double pgen, qgen, pload, qload;
-
-	pgen = qgen = pload = qload = 0;
 
 	printf("%10s %4s %20s%20s%20s\n", 
 		"bus no.", "type", 
 		"volt (e + jf)", "power (P + jQ)", "power(计算值)");
-	for (loopnode(ALL); (pn = nextnode()) != NULL; ) {
-		pw = pn->pw_act;
-		pgen += pn->pw.x + pn->pload;
-		qgen += pn->pw.y + pn->qload;
-		pload += pn->pload;
-		qload += pn->qload;
+	for (loopnode(); (pn = nextnode()) != NULL; ) {
+		pw = node_pw(pn);
 		printf("%s%9d %4d %10.4f%10.4f" "%10.4f%10.4f" "%10.4f%10.4f\n", 
 			(pn->flag & (OVER_VOLTLIM|UNDER_VOLTLIM)) ? "*" : " ",
 			pn->no, 
@@ -126,16 +182,13 @@ void printnode(void) {
 			compscale(pn->volt), angle(pn->volt) * 180 / 3.14159, 
 			pn->pw.x, pn->pw.y, pw.x, pw.y);
 	}
-	printf("%10s: %.4f, %.4f\n", "发电", pgen, qgen);
-	printf("%10s: %.4f, %.4f\n", "负荷", pload, qload);
-	printf("%10s: %.4f, %.4f\n", "网损", pgen - pload, qgen - qload);
 }
 
 void printybus(void) {
 	struct node *pn;
 	struct nodechain *pc;
 
-	for (loopnode(ALL); (pn = nextnode()) != NULL; ) { 
+	for (loopnode(); (pn = nextnode()) != NULL; ) { 
 		printf("%4d: (%.4f %.4f)\n", 
 			pn->no, pn->adm_self.x, pn->adm_self.y);
 		for (pc = pn->nbr; pc != NULL; pc = pc ->next)
@@ -149,22 +202,30 @@ void printlinef(void) {
 	struct nodechain *pc;
 	struct comp pw;
 
-	for (loopnode(ALL); (pn = nextnode()) != NULL; ) {
+	for (loopnode(); (pn = nextnode()) != NULL; ) {
 		pw = line_flow(pn);
-		printf("%4d: (%.4f, %.4f)\n", pn->no, pw.x, pw.y);
+		printf("%4d: ( %.4f, %.4f)\n", pn->no, pw.x, pw.y);
 		for (pc = pn->nbr; pc != NULL; pc = pc ->next)
-			printf("  '--->%4d: (%.4f, %.4f)\n", pc->n->no, 
+			printf("--->%4d: (%.4f %.4f)\n", pc->n->no, 
 				pc->pw_f.x, pc->pw_f.y);
 	}
 }
 
 /* ycalc: form the system Ybus */
-/* ycalc: 形成系统的Ybus, 即计算节点的自导纳 */
 void ycalc(void) {
 	struct node *np;
+	struct branch *bp;
 
-	for (loopnode(ALL); (np = nextnode()) != NULL; nodecalc(np))
-	    	;
+	for (loopbranch(); (bp = nextbranch()) != NULL; ) {
+		bp->inode->nbr = addchain(bp->inode->nbr, 
+					bp->jnode, bp);	
+		bp->jnode->nbr = addchain(bp->jnode->nbr, 
+					bp->inode, bp);
+		branchcalc(bp);
+	}
+	for (loopnode(); (np = nextnode()) != NULL; ) {
+		nodecalc(np);
+	}
 }
 
 /* node_pw: return calculated nodal power injection Si = P + j Q according to 
@@ -186,12 +247,11 @@ struct comp node_pw(struct node *t) {
    return the power mismatch dS = S(sched) - S(actural) */
 struct comp checknodepw(struct node *t) {
     	struct comp pw_mis = makecomp(.0, .0);
-	Elm node_q(struct node *);
 
     	if (t->type == PQ) {
 		pw_mis = compmns(t->pw, t->pw_act);
 	} else if (t->type == PV) {
-		t->pw.y = node_q(t);
+		t->pw.y = t->pw_act.y;
 		pw_mis.x = t->pw.x - t->pw_act.x;
 	} else if (t->type == SLACK) {
 		t->pw = t->pw_act;
@@ -227,8 +287,8 @@ Elm node_q(struct node *t) {
 	powerq = -vi * t->adm_self.y;
 	for (pc = t->nbr; pc != NULL; pc = pc->next) {
 		dan = angle(t->volt) - angle(pc->n->volt);
-		powerq += compscale(pc->n->volt) *
-		    (-pc->b->adm_se.x * sin(dan) +
+		powerq += compscale(pc->n->volt)*(
+			-pc->b->adm_se.x * sin(dan) +
 			pc->b->adm_se.y * cos(dan));
 	}
 	powerq *= vi;
@@ -300,7 +360,7 @@ struct comp b_flow(int dir, struct branch *pb) {
 struct node *findnode(int no) {
 	struct node *pn;
 
-	for (loopnode(ALL); (pn = nextnode()) != NULL; ) {
+	for (loopnode(); (pn = nextnode()) != NULL; ) {
 		if (pn->no == no) {
 			return pn;
 		}
@@ -318,9 +378,9 @@ struct nodechain *findnbr(struct node *base, struct node *aim) {
 }
 
 /* checknode: check the node limits.
-     for PV node, check its Q generation,
-     for PQ node, check its voltage. 
-     return the number of out-of-limit nodes */
+for PV node, check its Q generation,
+for PQ node, check its voltage. 
+return the number of out-of-limit nodes */
 int checknode(void) {
 	double q_gen;
 	double vt;
@@ -332,7 +392,7 @@ int checknode(void) {
 	for (i = 0; (t=getnode(i)) != NULL; i++) {
 		switch (t->type) {
 		case PV:
-			q_gen = t->qload + t->pw.y;
+			q_gen = t->loadmvar/basemva + t->pw.y;
 			/* out control range */
 			if (q_gen < t->q_min) {
 				q_gen = t->q_min;
@@ -346,7 +406,7 @@ int checknode(void) {
 			}
 			t->flag |= PVTOPQ; 	/* PV to PQ */
 			t->type = PQ;
-			t->pw.y = q_gen - t->qload; /* make Q fixed */
+			t->pw.y = q_gen - t->loadmvar/basemva; /* make Q fixed */
 			t->volt = makecomp(1.0, .0);	/* flat start */
 			t->vt_min = .95;
 			t->vt_max = 1.1;
@@ -539,11 +599,11 @@ void updatedf(double *errf, double **args) {
 }
 
 /* makeindex: create the system Jacobian's index pwindex, 
-  	put the mismach functions' left side values in dfbuf,
-	and set the max error errf.
-	return the number of columns of the system Jacobian.
+ and put the mismach functions' left side values in dfbuf,
+ and set the max error errf.
+ return the number of columns of the system Jacobian.
 
- the system matrix has the format :
+ the system matrix has format:
 
  left  jacobian   right
  pwid  matrix     pwid
@@ -553,13 +613,7 @@ void updatedf(double *errf, double **args) {
  DQ  =  N    L  *  DV 
  ___   ___  ___    ___
 */
-
 int makeindex(Elm *errf, Elm **arg) {
-    	return (pftype == NR_POL) ? polmakeindex(errf, arg) :
-	    	recmakeindex(errf, arg);
-}
-
-int polmakeindex(Elm *errf, Elm **arg) {
 	struct node *t;
 	Size i, j;
 	struct comp pw_mis;
@@ -577,8 +631,8 @@ int polmakeindex(Elm *errf, Elm **arg) {
 		dfbuf[j] = pw_mis.x;
 		msg(stderr, "pwf: makeindex: %4d %12.6f\n", t->no, dfbuf[j]);
 		j++;
-		/* PQ or PV-to-PQ buses have 2 indices: DP, DQ */
 		if (t->type == PQ) { 
+		/* PQ or PV-to-PQ buses have 2 indices: DP, DQ */
 			addpwindex(j, t, DQ, DV);
 			dfbuf[j] = pw_mis.y;
 			msg(stderr, "pwf: makeindex: %4d %12.6f\n", t->no, dfbuf[j]);
@@ -598,7 +652,7 @@ Size recmakeindex(Elm *errf, Elm **arg) {
 	Size j;
 
 	j = 0;
-	for (loopnode(ALL); (pn = nextnode()) != NULL; ) {
+	for (loopnode(); (pn = nextnode()) != NULL; ) {
 	    	node_pw(pn);
 		pw_mis = checknodepw(pn);
 		if (pn->type == SLACK)
@@ -717,9 +771,9 @@ Elm getnodeinfo(struct node *t, int name) {
 		case ANG:
 			return angle(t->volt);
 		case PGEN:
-			return t->pw.x + t->pload;
+			return t->pw.x + t->loadmw/basemva;
 		case QGEN:
-			return t->pw.y + t->qload;
+			return t->pw.y + t->loadmvar/basemva;
 		default:
 			return 0;
 	}
@@ -750,7 +804,7 @@ void setnodeinfo(struct node *t, int name, ...) {
 		break;
 	case QGEN:
 		result = va_arg(ap, double);
-		t->pw.y = result - t->qload;
+		t->pw.y = result - t->loadmvar/basemva;	
 		break;
 	case QGENINC:
 		result = va_arg(ap, double);
@@ -820,6 +874,64 @@ int getsysinfo(double *sen, struct node *ti, struct node *tj, int name) {
 	return 1;
 }
 
+int nodecmp1(const void *t1, const void *t2) {
+	return (*(struct node * const *)t1)->nconnect -
+		(*(struct node * const *)t2)->nconnect;
+}
+
+/* nodecmp2: compare the nodes according to node no. */
+int nodecmp2(const void *t1, const void *t2) {
+	return (*(struct node * const *)t1)->no -
+		(*(struct node * const *)t2)->no;
+}
+
+/* nodecmp3: compare the nodes according to node types */
+int nodecmp3(const void *t1, const void *t2) {
+	int t1type, t2type;
+
+	t1type = (*(struct node * const *)t1)->type;
+	t2type = (*(struct node * const *)t2)->type;
+	return nodetype(t1type) - nodetype(t2type);
+}
+
+int nodetype(int ntype) {
+	if (ntype == PV) 
+		return 0;
+	else if (ntype == PQ)
+		return 1;
+	else if (ntype == SLACK)
+		return 2;
+	else
+		return 3;
+}
+
+/* reorder: sort the nodes according to some type.
+ nodes:
+	all_node or pv_node or pq_node
+ type:
+	NODELINES  based on # out lines of a node
+	NODENO	   based on node no
+*/
+void reorder(struct node **nodes, int lim, int type) {
+	int (*cmpf) (const void *, const void *);
+
+	switch (type) {
+	case NODELINES:
+		cmpf = nodecmp1;
+		break;
+	case NODENO:
+		cmpf = nodecmp2;
+		break;
+	case NODETYPE:
+		cmpf = nodecmp3;
+		break;
+	default:
+		msg(stderr, "wrong order type\n");
+		return;
+	}
+	qsort(nodes, lim, sizeof(nodes[0]), cmpf);
+}
+
 void pvpqsl(void) {
 	int i;
 	struct node *t;
@@ -836,31 +948,26 @@ void pvpqsl(void) {
 		case PQ:
 			pq_node[npqnode++] = t;
 			break;
+		default:
+			break;
 		}
-	msg(stderr, "pwf: 平衡节点 = %d\n", sl_node->no);
-	msg(stderr, "pwf: pv节点数 = %d\n", npvnode);
-	msg(stderr, "pwf: pq节点数 = %d\n", npqnode);
-	msg(stderr, "pwf: 总节点数 = %d\n", nnode);
+	msg(stderr, "pwf: reorder: pv = %d\n", npvnode);
+	msg(stderr, "pwf: reorder: pq = %d\n", npqnode);
+	msg(stderr, "pwf: reorder: total = %d\n", nnode);
 }
 
 /* flatstart: flat start of power flow calculation with one cycle of GS iteration */
-/* flatstart: 潮流计算的平启动方式，即所有节点的相角等于平衡节点的相角，
- * 所有PQ节点的电压等于平衡节点的电压；所有PV节点的电压等于其设定电压。*/
 void flatstart(double *ef) {
-	struct node *t;
+	struct node **t;
 	struct comp volt;
 	double ang;
 
 	pvpqsl();
 	volt = sl_node->volt;
 	ang = angle(volt);
-
-	/* set PQ nodes' voltages to slack node voltage */
-	for (loopnode(PQ); (t=nextnode())!= NULL; )
-		t->volt = volt; 
-	/* set PV nodes' voltages to controled voltage */
-	for (loopnode(PV); (t=nextnode())!= NULL; )
-		setnodeinfo(t, VOLT_ANG, t->volt_ctl, ang);
-
+	looppq(t)	/* set PQ Nodes' voltages to Slack node's voltage */
+		(*t)->volt = volt; 
+	looppv(t) 	/* set PV nodes' voltages to controled voltage */
+		setnodeinfo(*t, VOLT_ANG, (*t)->volt_ctl, ang);
 	gs(ef);	/* perform one cycle of G-S flow */
 }
