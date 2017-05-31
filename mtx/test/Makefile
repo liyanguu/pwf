@@ -1,18 +1,19 @@
 CC := gcc
 LOADER := gfortran
 CFLAGS := -Wall -O
-CPPFLAGS := -I.. -I../..
+CPPFLAGS := -I.. 
 LIBS := m lapacke cblas lapack refblas
-EXES := test_sp test_selectrow test_inverse test_mtxinv
-vpath %.h .. ../..
+## EXES := test_sp test_selectrow test_inverse test_mtxinv
+EXES := test_colspm 
+vpath %.h .. 
 
 .PHONY : all
 all : $(EXES)
 
-$(EXES) : % : %.o ../spm.o ../mtx.o ../../msg.o
+$(EXES) : % : %.o ../colspm.o ../mtx.o ../msg.o
 	$(LOADER) -o $@ $^ $(addprefix -l, $(LIBS))
 
-%.o : %.c spm.h mtx.h msg.h
+%.o : %.c mtx.h msg.h colspm.h
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
 
 .PHONY : clean
