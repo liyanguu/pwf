@@ -6,6 +6,7 @@
 #define ZEROEPS 1.0E-20
 #define swapt(t, a, b) {t _z = a; a = b; b = _z;}
 #define min(a, b) ((a) < (b) ? (a) : (b))
+#define max(a, b) ((a) > (b) ? (a) : (b))
 #define trymtxalloc(m, nrow, ncol) ((m==NULL) ? mtxalloc(nrow, ncol) : m)
 #define mtxprint(name, m) fmtxprt(stdout, name, m)
 #define mtxprt(name, m)   mtxprint(name, m)

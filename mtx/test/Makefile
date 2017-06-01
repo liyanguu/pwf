@@ -16,6 +16,8 @@ $(EXES) : % : %.o ../colspm.o ../mtx.o ../msg.o
 %.o : %.c mtx.h msg.h colspm.h
 	$(CC) -c $(CPPFLAGS) $(CFLAGS) -o $@ $<
 
-.PHONY : clean
+.PHONY : veryclean clean
 clean :
 	rm -rf *.o
+veryclean : clean
+	rm -f $(EXES)

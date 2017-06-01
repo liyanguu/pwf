@@ -1,4 +1,4 @@
-pwf 1.0, Copyright (c) 2017, LiYang, WuHan University
+pwf 1.0, Copyright (c) 2017, LiYang, WuHan University, Dept. of Electrical Engineering.
 All rights reserved.
 
 This library is free software; you can redistribute it and/or
