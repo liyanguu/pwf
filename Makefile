@@ -2,7 +2,7 @@
 ## 2017-6-1
 ## 李扬
 
-.PHONY : veryclean, pull, backup
+.PHONY : veryclean, push, backup
 
 veryclean :
 	$(MAKE) -C pwf veryclean
@@ -13,5 +13,5 @@ backup :
 	git add .
 	git commit -m "`date` 备份提交"
 
-pull : veryclean backup
-	git pull
+push : veryclean backup
+	git push
