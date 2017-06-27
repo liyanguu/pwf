@@ -1,9 +1,13 @@
-#ifndef H_MTX
-#define H_MTX
+/* mtx.h - 普通实数矩阵的定义 
+   2017-6-1 修改
+*/
+
+#ifndef HEADER_mtx
+#define HEADER_mtx
 
 #include <stdio.h>
 
-#define ZEROEPS 1.0E-20
+#define ZERO_EPS 1.0E-20
 #define swapt(t, a, b) {t _z = a; a = b; b = _z;}
 #define min(a, b) ((a) < (b) ? (a) : (b))
 #define max(a, b) ((a) > (b) ? (a) : (b))

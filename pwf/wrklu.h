@@ -1,8 +1,8 @@
-/* wrapper.h - KLU 皮函数头文件
+/* wrklu.h - KLU 皮函数头文件
  * 2017-5-17 */
 
-#ifndef HEADER_wrapper
-#define HEADER_wrapper
+#ifndef HEADER_wrklu
+#define HEADER_wrklu
 
 #include <cs.h>
 #include <klu.h>

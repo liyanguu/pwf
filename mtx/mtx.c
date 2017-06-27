@@ -462,7 +462,7 @@ int ludcmp(Mtx a, Size *indx, Elm *d) {
 		}
 		indx[j] = imax;
 		if (a->val[j][j] == 0)
-			a->val[i][j] = ZEROEPS;
+			a->val[i][j] = ZERO_EPS;
 		dum = 1. / a->val[j][j];
 		for (i = j+1; i < a->nrow; ++i)
 			a->val[i][j] *= dum;

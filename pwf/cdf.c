@@ -4,6 +4,7 @@
    更改记录：
 	2017-3-19	modify bus section data, add ctlmin,max
 	2017-5-13~14	修改部分函数, 修正错误：不能正确读入CDF文件
+	2017-6-13	修正 readcdf, writecdf 函数
 */
 
 #include <stdio.h>
@@ -72,9 +73,10 @@ char *readcdfline(FILE *fp) {
 /* readcdf: 读取CDF文件fp，完成节点与支路的创建 */
 int readcdf(FILE *fp) {
 	char *ps;
+	int done;
 
 	if (!titlescan(readcdfline(fp))) {
-		msg(stderr, "readcdf: missing title card\n");
+		msg(stderr, "error: readcdf: missing title card\n");
 		return 0;
 	}
 	while ((ps = readcdfline(fp)) != NULL) {
@@ -91,23 +93,23 @@ int readcdf(FILE *fp) {
 		} else {
 			switch (section) {
 			case BUS:
-				if (!busscan(ps)) {
-					return 0;
-				}
+				done = busscan(ps);
 				break;
 			case BRANCH:
-				if (!branchscan(ps)) {
-					return 0;
-				}
+				done = branchscan(ps);
 				break;
 			default:
-				msg(stderr, "readcdf: wrong section %d at line %d\n", 
+				msg(stderr, "warning: readcdf: wrong section %d at line %d\n", 
 					section, lineno);
+			}
+			if (!done) {
+				msg(stderr, "error: readcdf: input failed"); 
+				return 0;
 			}
 		}
 	}
 	if (section != EOD) {
-		msg(stderr, "readcdf: missing END OF DATA\n");
+		msg(stderr, "error: readcdf: missing END OF DATA\n");
 		return 0;
 	}
 	return 1;
@@ -119,26 +121,27 @@ int writecdf(FILE *fp) {
 	struct node *t;
 	struct branch *b;
 	int maxnode, maxbranch;
+	extern char line[];
 
 	getsize(&maxnode, &maxbranch);
 	writetitle(line);
-	msg(fp, "%s", line);
+	fprintf(fp, "%s", line);
 
-	msg(fp, "BUS DATA FOLLOWS %30d ITEMS\n", maxnode);
+	fprintf(fp, "BUS DATA FOLLOWS %30d ITEMS\n", maxnode);
 	for (loopnode(ALL); (t=nextnode())!=NULL; ) {
 		writebus(line, t);
-		msg(fp, "%s", line);
+		fprintf(fp, "%s", line);
 	}
-	msg(fp, "-999\n");
+	fprintf(fp, "-999\n");
 
-	msg(fp, "BRANCH DATA FOLLOWS %30d ITEMS\n", maxbranch);
+	fprintf(fp, "BRANCH DATA FOLLOWS %30d ITEMS\n", maxbranch);
 	for (loopbranch(); (b=nextbranch())!=NULL; ) {
 		writebranch(line, b);
-		msg(fp, "%s", line);
+		fprintf(fp, "%s", line);
 	}
-	msg(fp, "-999\n");
+	fprintf(fp, "-999\n");
 
-	msg(fp, "END OF DATA\n");
+	fprintf(fp, "END OF DATA\n");
 	return !ferror(fp);
 }
 

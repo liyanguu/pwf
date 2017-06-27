@@ -3,12 +3,13 @@ OBJS := $(patsubst %.c, %.o, $(SRCS))
 DEPS := $(patsubst %.c, %.d, $(SRCS))
 CC = gcc
 LOADER = gfortran
-CFLAGS = -Wall -O3 
+CFLAGS = -Wall -O3
 MTX_PATH = ../mtx
 CPPFLAGS = -I$(MTX_PATH)
 LDFLAGS = -L$(MTX_PATH)
 LA_LIB = lapacke cblas lapack refblas tmglib
-KLU_LIB = klu csparse amd btf colamd 
+#KLU_LIB = klu csparse amd btf colamd
+KLU_LIB = klu amd btf colamd  
 LIBS := mtx $(LA_LIB) $(KLU_LIB) m
 
 .PHONY : all lib mtxlib
@@ -25,13 +26,13 @@ lib : libpwf.a
 libpwf.a : $(filter-out main.o, $(OBJS))
 	ar crs $@ $?
 
-depends : $(SRCS)
-	$(CC) -MM $(CPPFLAGS) $^ >$@ 
+%.d : %.c 
+	$(CC) -MM $(CPPFLAGS) $< >$@
 
--include depends
+-include $(DEPS)
 
 .PHONY : veryclean clean
 clean : 
-	rm -rf $(OBJS)
+	rm -rf $(OBJS) $(DEPS)
 veryclean : clean
-	rm -rf pwf depends libpwf.a
+	rm -rf pwf libpwf.a

@@ -1,27 +1,24 @@
-/* wrapper.c - KLU 函数的皮函数 
+/* wrklu.c - KLU 函数的皮函数 
  * 2017-5-27 */
 
-#include "wrapper.h"
+#include "wrklu.h"
 
 static klu_common common;
-static int set;
 static klu_symbolic *symbolic;
 static klu_numeric *numeric;
+static int dimension = 0;
+static int set;
 
 void wr_klu_defaults(void) {
     	if (set == 0) {
     		klu_defaults(&common);
+		symbolic = NULL;
+		numeric = NULL;
 	    	set = 1;
 	}
 }
 
 void wr_klu_analyze(int n, int *ap, int *ai) {
-    	static int dimension = 0;
-
-	if (n <= 0) {
-	    	symbolic = NULL;
-	    	return;
-	}
 	if (dimension == n)
 	    	return;
 	if (dimension != n && dimension != 0)
@@ -31,7 +28,7 @@ void wr_klu_analyze(int n, int *ap, int *ai) {
 }
 
 void wr_klu_factor(int *ap, int *ai, double *ax) {
-    	if (numeric != NULL)
+    	if (dimension > 0)
 	    	klu_free_numeric(&numeric, &common);
 	numeric = klu_factor(ap, ai, ax, symbolic, &common);
 }

@@ -3,48 +3,51 @@
    changelog:
    2017-4-19	review
    2017-5-13    
+   	6-1	colspm 版本
    */
 #include <stdio.h>
-#include <cs.h>
-#include <klu.h>
 #include "pwf.h"
-#include "wrapper.h"
+#include "wrklu.h"
+#include "colspm.h"
+
+static ColSpm *jac_matrix = NULL;
 
 /* makejac: create and update the Jacobian matrix */
-cs *makejac(int dim) {
-	static cs *jac_trip = NULL;
+ColSpm *makejac(int dim) {
 	int i, j;
 	double v;
 
-	if (dim == 0 && jac_trip != NULL) /* Reuse the OLD Jacobian */
-		return jac_trip;
-	else {	/* delete and create the NEW Jacobian matrix */
-		if (jac_trip != NULL) 
-			cs_spfree(jac_trip);
-		if ((jac_trip = cs_spalloc(dim, dim, dim, 1, 1))==NULL)
-			return NULL;
-	}
+	if (dim <= 0) /* Reuse the OLD Jacobian */
+		return jac_matrix;
+	else if (jac_matrix != NULL)
+		colspm_clr(jac_matrix); /* refresh Jacobian matrix */
+	else 
+	    	jac_matrix = colspm_init(dim); /* build the Jacobian */
 	/* update the Jacobian */
-	for (i = 0; i < dim; i++) {
-		for (j = 0; j < dim; j++) {
+	for (j = 0; j < dim; j++) {
+	    	colspm_addcol(jac_matrix, j);
+		for (i = 0; i < dim; i++)
 			if (getjac(&v, i, j))
-				cs_entry(jac_trip, i, j, v); 
-		}
+			    	colspm_add(jac_matrix, i, v);
+		colspm_endcol(jac_matrix);
 	}
-	return jac_trip;
+	colspm_adjust(jac_matrix);
+	return jac_matrix;
 }
 
-int jacsolve(cs *matrix, double *arg) {
-	cs *tmp;
+void deletjac(void) {
+    	jac_matrix = colspm_del(jac_matrix);
+}
+
+int jacsolve(ColSpm *jmatrix, double *arg) {
 	int n, *ap, *ai; 
 	double *ax;
 	int solstat;
 
-	tmp = cs_compress(matrix);
-	n = tmp->n;
-	ap = tmp->p;
-	ai = tmp->i;
-	ax = tmp->x;
+	n = jmatrix->dim;
+	ap = jmatrix->pos;
+	ai = jmatrix->rows;
+	ax = jmatrix->elms;
 	wr_klu_defaults();
 	wr_klu_analyze(n, ap, ai);
 	wr_klu_factor(ap, ai, ax);
@@ -53,8 +56,14 @@ int jacsolve(cs *matrix, double *arg) {
 }
 
 void printjac(void) {
-	printf("System Jacobian:\n");
-	cs_print(makejac(0), 1);
+    	ColSpm *jmatrix = makejac(-1);
+
+	if (jmatrix == NULL)
+	    	printf("NULL Jacobian\n");
+	else {
+		printf("System Jacobian:\n");
+		colspm_print(jmatrix);
+	}
 }
 
 /* static int *indx;  swap index of ludcmp & lubksb */
@@ -79,7 +88,6 @@ int nrpf(int lim, double tol, int ischeck) {
 	int i, dim;
 	double errf, errx;
 	double *dfargs;
-	cs *jacob;
 
 	flatstart(&errf);
 	if (errf <= tol)
@@ -88,9 +96,9 @@ int nrpf(int lim, double tol, int ischeck) {
 		dim = makeindex(&errf, &dfargs);
 		if (errf <= tol)
 			break;
-		if ((jacob = makejac(dim)) == NULL)
+		if (makejac(dim) == NULL)
 			return -1;
-		jacsolve(jacob, dfargs);
+		jacsolve(makejac(-1), dfargs);
 		updateindex(&errx);
 		if (ischeck && checknode() > 0) /* rebuild the index */
 		    	continue;

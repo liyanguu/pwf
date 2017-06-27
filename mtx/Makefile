@@ -15,11 +15,7 @@ $(MTXLIB) : $(OBJS)
 	ar -rvs $@ $?
 
 %.d : %.c
-	@set -e; $(RM-F) $@; \
-	$(CC) -MM $(CPPFLAGS) $< >$@.$$$$; \
-	sed 's/\($*\.o\)[ :]*/\1 $@ : /g' $@.$$$$ >$@; \
-	$(RM-F) $@.$$$$; \
-	echo "generated $@"
+	$(CC) -MM $(CPPFLAGS) $< >$@
 
 -include $(DEPS)
 
