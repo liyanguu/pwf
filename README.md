@@ -3,14 +3,21 @@ pwf - Newton-Raphon 法潮流计算程序（库）
 
 ## 文件清单
 
-/pwf : 潮流计算程序（库）文件夹
-/mtx : 矩阵运算文件夹
-/minq : 最优潮流计算程序文件夹
-/minf : 火电厂最优发电程序（已不用）
-/lgpl_2_1.txt : LGPL 许可原文
-/License.txt : 本软件的授权许可
-/Makefile : 备份管理文件
-/README.md : 必读文件（此文件）
+./pwf : 潮流计算程序（库）文件夹
+
+./mtx : 矩阵运算文件夹
+
+./minq : 最优潮流计算程序文件夹
+
+./minf : 火电厂最优发电程序（已不用）
+
+./lgpl_2_1.txt : LGPL 许可原文
+
+./License.txt : 本软件的授权许可
+
+./Makefile : 备份管理文件
+
+./README.md : 必读文件（此文件）
 
 ## 使用说明
 
@@ -24,20 +31,20 @@ pwf 程序库使用 KLU 进行求解，应首先安装 libklu, libamd, libbtf, l
 
 pwf [-agrcnlyj] [-lim] [+tol] [-ooutfile] [infile...]
 
--a	adjusted load flow
--g	G-S method
--r	rectangular N-R method
--c	write to CDF file
--n	print the nodal information
--l	print the line flows
--y	print the YBus
--j	print the Jacobian
--lim	set the iteration limit to lim(INT)
-+tol	set the precision to tol(DOUBLE)
--ofilename
-	set the output file to filename
-infile...
-	CDF input files
+-a	adjusted load flow   
+-g	G-S method   
+-r	rectangular N-R method  
+-c	write to CDF file  
+-n	print the nodal information  
+-l	print the line flows  
+-y	print the YBus  
+-j	print the Jacobian  
+-lim	set the iteration limit to lim(INT)  
++tol	set the precision to tol(DOUBLE)  
+-ofilename  
+	set the output file to filename  
+infile...  
+	CDF input files  
 
 ## pwf 说明
 
